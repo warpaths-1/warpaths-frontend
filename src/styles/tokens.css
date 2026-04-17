@@ -1,0 +1,77 @@
+:root {
+  /* Backgrounds */
+  --bg-primary: #0A0C0F;
+  --bg-secondary: #12161C;
+  --bg-elevated: #1A2030;
+
+  /* Accent — Red */
+  --accent-red: #C41E3A;
+  --accent-red-muted: #8B1A2A;
+
+  /* Accent — Teal */
+  --accent-teal: #1A9B8A;
+  --accent-teal-bright: #22C4B0;
+
+  /* Accent — Amber */
+  --accent-amber: #D48B2A;
+
+  /* Text */
+  --text-primary: #E8EDF2;
+  --text-secondary: #8A9BB0;
+  --text-disabled: #4A5568;
+
+  /* Borders */
+  --border-subtle: #1E2A3A;
+  --border-active: #2A3F5A;
+
+  /* Status */
+  --status-draft-bg: #1E2A3A;
+  --status-draft-text: #8A9BB0;
+  --status-pending-bg: #3A2A0A;
+  --status-pending-text: #D48B2A;
+  --status-active-bg: #0A2A1E;
+  --status-active-text: #1A9B8A;
+  --status-complete-bg: #0A2A1E;
+  --status-complete-text: #22C4B0;
+  --status-rejected-bg: #2A0A0A;
+  --status-rejected-text: #C41E3A;
+  --status-locked-bg: #1A1A1A;
+  --status-locked-text: #4A5568;
+
+  /* Typography */
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Font sizes */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
+  --text-3xl: 32px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Border radius */
+  --radius-sm: 2px;
+  --radius: 3px;
+  --radius-md: 4px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+
+  /* Shadows — none by default, used sparingly */
+  --shadow-none: none;
+}

@@ -1,0 +1,70 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.complete .circle {
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+}
+
+.active .circle {
+  background: var(--accent-red);
+  color: var(--text-primary);
+}
+
+.upcoming .circle {
+  background: var(--bg-elevated);
+  color: var(--text-disabled);
+}
+
+.stepLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.complete .stepLabel,
+.upcoming .stepLabel {
+  color: var(--text-secondary);
+}
+
+.active .stepLabel {
+  color: var(--accent-red);
+}
+
+.connector {
+  flex: 1;
+  height: 1px;
+  min-width: 24px;
+  background: var(--border-subtle);
+  margin-bottom: 20px; /* aligns with circle center roughly */
+}
+
+.connectorComplete {
+  background: var(--accent-teal);
+}

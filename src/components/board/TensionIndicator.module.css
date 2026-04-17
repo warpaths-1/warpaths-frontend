@@ -1,0 +1,36 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.segments {
+  display: flex;
+  gap: 3px;
+  height: 18px;
+}
+
+.segment {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--bg-elevated);
+}
+
+/* Level 1–2: teal */
+.teal    { background: var(--accent-teal); }
+/* Level 3: amber */
+.amber   { background: var(--accent-amber); }
+/* Level 4–7: red */
+.red     { background: var(--accent-red); }
+
+.current {
+  box-shadow: 0 0 4px 1px currentColor;
+}

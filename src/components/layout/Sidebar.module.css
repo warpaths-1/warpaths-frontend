@@ -1,0 +1,33 @@
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4) 0 calc(var(--space-4) - 3px);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.item:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.item.active {
+  border-left-color: var(--accent-red);
+  color: var(--text-primary);
+}
