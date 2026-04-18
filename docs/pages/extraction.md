@@ -79,7 +79,7 @@ Follow list item anatomy (Patterns §7):
 
 ### List API call
 ```
-GET /v1/clients/:client_id/extractions
+GET /clients/:client_id/extractions
   Auth: Bearer token
   Query: tag_id (when tag filter active)
   Returns: ClientExtraction[] desc by created_at
@@ -121,11 +121,16 @@ Use the empty state pattern (Patterns §19):
 ### State 2 — UPLOAD
 
 **Quota display:**
-Secondary text, 11px mono, right-aligned above upload zone:
-`"4 extractions remaining this period"`
-If quota is 0: amber text — `"Extraction limit reached for this period"`.
-Disable upload zone and Extract button. Quota sourced from Client billing
-context — read from auth state or a `GET /clients/:id` call on mount.
+Read `reports_used_this_period` and effective reports limit from the Client
+object (fetched via `GET /clients/:client_id` on mount — available in
+ClientAdmin auth context). Effective limit = `custom_reports_limit` if set,
+otherwise read from the billing plan. Compute
+`remaining = effective_limit - reports_used_this_period`.
+
+Display as secondary text, 11px mono, right-aligned above upload zone:
+`"{n} extractions remaining this period"`
+If remaining is 0: amber text — `"Extraction limit reached for this period"`.
+Disable upload zone and Extract button.
 
 **Upload zone:**
 - `border: 1px dashed var(--border-active)`, `border-radius: 3px`,
@@ -155,20 +160,21 @@ Replaces UPLOAD entirely on submit.
 
 **API call:**
 ```
-POST /v1/report-extractions/ingest
+POST /report-extractions
   Auth: Bearer token
-  Body: multipart/form-data, field name "file"
-  Returns: 201 ReportExtraction object
+  Body: multipart/form-data, field name "pdf"
+  Returns: 201 ReportExtraction object (is_duplicate: false)
+           200 existing ReportExtraction (is_duplicate: true)
   Side effect: ClientExtraction created atomically server-side
   Timeout: 300s (already configured in src/api/client.js — do not override)
 ```
 
-**On 409 Conflict** (org already extracted this PDF):
+**On `is_duplicate: true`** (org already extracted this PDF):
 Treat as success — transition to RESULT with returned data.
 Show Toast: variant `info`,
 `"This report was already extracted. Showing existing results."`
 
-**On 201:** transition to RESULT, re-fetch list.
+**On success:** transition to RESULT, re-fetch list.
 **On error:** transition to ERROR.
 
 ---
@@ -178,15 +184,15 @@ Show Toast: variant `info`,
 #### Metadata bar (ClientAdmin only)
 Follow the Metadata Bar pattern (Patterns §6). Slots:
 1. Inline-editable display name (Patterns §18) —
-   `PATCH /v1/clients/:id/extractions/:id` with `{ display_name }`
+   `PATCH /clients/:id/extractions/:id` with `{ display_name }`
 2. Applied tags with `×` remove each —
-   `DELETE /v1/clients/:id/extractions/:id/tags/:tag_id`
+   `DELETE /clients/:id/extractions/:id/tags/:tag_id`
    `"+ Add tag"` → tag dropdown (Patterns §9) —
-   apply: `POST /v1/clients/:id/extractions/:id/tags`
-   create new: `POST /v1/clients/:id/tags` then apply
+   apply: `POST /clients/:id/extractions/:id/tags`
+   create new: `POST /clients/:id/tags` then apply
 3. `"Add note"` / truncated note — opens Drawer (480px), Textarea inside,
    auto-save on blur (Patterns §17) —
-   `PATCH /v1/clients/:id/extractions/:id` with `{ notes }`
+   `PATCH /clients/:id/extractions/:id` with `{ notes }`
 4. Right-aligned: `"● Scenario created"` (teal-bright, 10px mono) if
    `scenario_ids` non-empty, else blank. Link navigates to scenario
    authoring — route TBD, use `#` for now.
@@ -196,7 +202,7 @@ Follow the Metadata Bar pattern (Patterns §6). Slots:
    is not deleted."`, confirm button variant `destructive`.
    Blocked (disabled, tooltip `"Cannot delete — scenarios exist"`) if
    `scenario_ids` non-empty.
-   On confirm: `DELETE /v1/clients/:id/extractions/:id` → 204 →
+   On confirm: `DELETE /clients/:id/extractions/:id` → 204 →
    re-fetch list, transition to EMPTY.
 
 #### Top bar (all user types)
@@ -221,7 +227,7 @@ Follow Org CTA Bar pattern (Patterns §14). Render above tabs.
 
 #### Tabs
 Follow Tab Pattern (Patterns §5). Four tabs for ClientAdmin,
-three tabs for authenticated User (no org — Notes tab hidden):
+three tabs for authenticated User (no org — Admin Notes tab hidden):
 
 | Tab label | ClientAdmin | Authed User |
 |---|---|---|
@@ -238,7 +244,7 @@ Active on mount: **Game Brief**.
 
 Use Field Block pattern (Patterns §3) for each field.
 
-**Why This Game** (`scenario_suggestion.why_this_game`)
+**Why This Game** (`report_brief.why_this_game`)
 Label: `"WHY THIS GAME"` — default field block
 
 **Scenario Narrative** (`scenario_suggestion.scenario_narrative`)
@@ -256,8 +262,8 @@ Section divider (Patterns §4), then:
 Section label: `"SUGGESTED ACTORS"` (Patterns §10)
 
 Render as `Table` component: Name | Role | Stance columns.
-Map `scenario_suggestion.suggested_actors[]`:
-- `actor_name` → Name, primary text
+Map `actor_suggestions[]`:
+- `name` → Name, primary text
 - `role` → Role, secondary text
 - `stance` → Stance, secondary text
 
@@ -302,7 +308,7 @@ Auto-save note field (Patterns §17):
 - Placeholder: `"Add notes — authoring decisions, quality observations,
   follow-up items…"`
 - Value: `clientExtraction.notes` (may be null — empty textarea if so)
-- On blur: `PATCH /v1/clients/:id/extractions/:id` with `{ notes }`
+- On blur: `PATCH /clients/:id/extractions/:id` with `{ notes }`
 
 ---
 
@@ -326,7 +332,7 @@ Stat grid (Patterns §11):
 | SHA-256 Fingerprint | `pdf_fingerprint` | truncate to 16 chars + `…` |
 | Extraction ID | `id` | truncate to 12 chars + `…` |
 | Created | `created_at` | formatted: `"Apr 9, 2026 · 14:32 UTC"` |
-| Extractions Used | from Client billing context | e.g. `"4 of 10 this period"` |
+| Extractions Used | `reports_used_this_period` from Client object | e.g. `"4 of 10 this period"` |
 
 `"Extractions Used"` spans full width (`grid-column: 1 / -1`).
 
@@ -354,43 +360,46 @@ Direct link path: reloads the page.
 
 | Action | Trigger | API call |
 |---|---|---|
-| Load history list | Page mount (ClientAdmin) | `GET /v1/clients/:id/extractions` |
+| Load history list | Page mount (ClientAdmin) | `GET /clients/:id/extractions` |
+| Load Client for quota | Page mount (ClientAdmin) | `GET /clients/:id` |
 | Filter list by tag | Tag chip click | Re-fetch with `?tag_id=` |
-| Select record | List item click | `GET /v1/clients/:id/extractions/:id` + `GET /v1/report-extractions/:id` |
-| Load by URL param | Page mount with `:id` | `GET /v1/report-extractions/:id` (no auth required) |
-| Upload and extract | Extract button | `POST /v1/report-extractions/ingest` |
-| Handle duplicate upload | 409 response | Info Toast, treat as success |
-| Edit display name | Inline click + blur/Enter | `PATCH /v1/clients/:id/extractions/:id` |
-| Add / edit note | Drawer blur | `PATCH /v1/clients/:id/extractions/:id` |
-| Fetch tag library | `"+ Add tag"` click | `GET /v1/clients/:id/tags` |
-| Create and apply tag | New tag + enter | `POST /v1/clients/:id/tags` → apply |
-| Apply existing tag | Tag dropdown select | `POST /v1/clients/:id/extractions/:id/tags` |
-| Remove tag | Chip `×` | `DELETE /v1/clients/:id/extractions/:id/tags/:tag_id` |
-| Delete record | Confirm modal | `DELETE /v1/clients/:id/extractions/:id` |
+| Select record | List item click | `GET /clients/:id/extractions/:id` + `GET /report-extractions/:id` |
+| Load by URL param | Page mount with `:id` | `GET /report-extractions/:id` (no auth required) |
+| Upload and extract | Extract button | `POST /report-extractions` (multipart, field: `pdf`) |
+| Handle duplicate | `is_duplicate: true` response | Info Toast, treat as success |
+| Edit display name | Inline click + blur/Enter | `PATCH /clients/:id/extractions/:id` |
+| Add / edit note | Drawer blur | `PATCH /clients/:id/extractions/:id` |
+| Fetch tag library | `"+ Add tag"` click | `GET /clients/:id/tags` |
+| Create and apply tag | New tag + enter | `POST /clients/:id/tags` → apply |
+| Apply existing tag | Tag dropdown select | `POST /clients/:id/extractions/:id/tags` |
+| Remove tag | Chip `×` | `DELETE /clients/:id/extractions/:id/tags/:tag_id` |
+| Delete record | Confirm modal | `DELETE /clients/:id/extractions/:id` |
 | Create account | Auth gate button | Navigate `/join?next=/extract/:id` |
 | Log in | Auth gate button | Navigate `/login?next=/extract/:id` |
 | Create org account | Org CTA button | Navigate `#` (TBD) |
 | New extraction (from result) | `"New Extraction"` button | Transition to UPLOAD |
-| Save demo extraction ID | On authenticated user arrival | `PATCH /v1/users/:id` `{ demo_extraction_id }` if null |
 
 ---
 
 ## API Reference
 
 ```
-POST /v1/report-extractions/ingest          multipart/form-data, field "file"
-GET  /v1/report-extractions/:id             no auth required
+POST /report-extractions                    multipart/form-data, field "pdf"
+GET  /report-extractions/:id               no auth required
+GET  /report-extractions                   list (staff/admin use)
+PATCH /report-extractions/:id              field corrections (staff/admin)
 
-GET    /v1/clients/:id/extractions           history list
-GET    /v1/clients/:id/extractions/:id       single record
-PATCH  /v1/clients/:id/extractions/:id       display_name, notes
-DELETE /v1/clients/:id/extractions/:id       delete record
+GET    /clients/:id                         for quota display
+GET    /clients/:id/extractions             history list
+GET    /clients/:id/extractions/:id         single record
+PATCH  /clients/:id/extractions/:id         display_name, notes
+DELETE /clients/:id/extractions/:id         delete record
 
-POST   /v1/clients/:id/extractions/:id/tags          apply tag
-DELETE /v1/clients/:id/extractions/:id/tags/:tag_id  remove tag
+POST   /clients/:id/extractions/:id/tags           apply tag
+DELETE /clients/:id/extractions/:id/tags/:tag_id   remove tag
 
-GET    /v1/clients/:id/tags                 tag library
-POST   /v1/clients/:id/tags                 create tag
+GET    /clients/:id/tags                    tag library
+POST   /clients/:id/tags                    create tag
 ```
 
 Implement all functions in `src/api/extraction.js` before building
@@ -405,7 +414,6 @@ the page component.
 | `PageShell` | Outer wrapper, no sidebar |
 | `Button` | Extract, New Extraction, Cancel, Try Again, CTAs |
 | `Badge` | Extraction status |
-| `Card` | Not used directly — seed cards and stat cells are local styles per Patterns §11–12 |
 | `Table` | Suggested actors |
 | `Input` | Inline display name editing |
 | `Textarea` | Notes content inside Drawer |
@@ -423,20 +431,19 @@ as local sub-components inside `ExtractionPage.jsx`. Do not add them to
 
 ## Constraints
 
-- `GET /v1/report-extractions/:id` requires no auth. The axios interceptor
+- `GET /report-extractions/:id` requires no auth. The axios interceptor
   attaches a token only if present — no special handling needed.
-- ReportExtraction content is read-only. Only ClientExtraction metadata
-  (display_name, notes, tags) is editable.
-- 409 on ingest is a success path — handle it as such.
+- ReportExtraction content is read-only on this page. Only ClientExtraction
+  metadata (display_name, notes, tags) is editable.
+- Duplicate detection is via `is_duplicate: true` in the POST response —
+  not a 409 status code. Handle accordingly.
 - ClientAdmins always see the list panel. When arriving at `/extract/:id`,
   pre-select the matching ClientExtraction if it exists in org history.
-  If not (extraction belongs to another org), load detail read-only with
-  no list selection highlighted.
+  If not (extraction belongs to another org or is a free user extraction),
+  load detail read-only with no list selection highlighted.
+- `free_extraction_id` on User is staff-managed server-side. The frontend
+  does not write this field — do not implement any PATCH to User on this page.
 - Tag rename and tag library delete are scoped to OrgManagementPage —
   not implemented here. Only applying and removing tags on an extraction
   is in scope.
-- When an authenticated User (no org) arrives at `/extract/:id` and
-  `user.demo_extraction_id` is null, set it via
-  `PATCH /v1/users/:id` with `{ demo_extraction_id: extractionId }`.
-  Do not overwrite if already set.
 - Page does not persist scroll position or selected record across navigation.
