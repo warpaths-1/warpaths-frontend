@@ -209,9 +209,10 @@ Tension narrative below: italic 13px secondary, max 3 lines with expand toggle.
 `Header.jsx`
 
 Persistent top bar, 56px, primary bg, bottom border.
-Left: "WARPATHS" wordmark — IBM Plex Mono 13px letter-spacing 0.18em weight 500.
+Left: "WARPATHS" wordmark — Black Ops One 18px letter-spacing 0.04em weight 400.
 Right: display name + ChevronDown → dropdown with My Account, Leaderboard,
 Log out. Org admins also see Org Management.
+Right of wordmark: if client.logo_url is present, render org logo as <img> — max-height 28px, max-width 80px, object-fit contain. If absent, render client display name in 12px secondary text. Only shown when Client context exists. 
 
 ### Sidebar
 `Sidebar.jsx`

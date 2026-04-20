@@ -35,8 +35,8 @@ elements are avoided; information density is prized.
 ### Accents
 | Token | Value | Use |
 |---|---|---|
-| `--accent-red` | `#C41E3A` | Primary CTA, active state left border, active tab underline |
-| `--accent-red-muted` | `#8B1A2A` | Destructive button border |
+| `--accent-red` | `#FF0000` | Primary CTA, active state left border, active tab underline |
+| `--accent-red-muted` | `#CC0000` | Destructive button border |
 | `--accent-teal` | `#1A9B8A` | Success, completion, stable indicators, toggle-on |
 | `--accent-teal-bright` | `#22C4B0` | Completion text, teal accent text |
 | `--accent-amber` | `#D48B2A` | Warnings only — quota alerts, retry actions, org CTA border |
@@ -63,9 +63,10 @@ Statuses: `draft`, `pending`, `active`, `complete`, `rejected`, `locked`.
 ## Typography
 
 ### Fonts
+- **Black Ops One** (400) — WARPATHS wordmark only
 - **IBM Plex Sans** (400, 500, 600) — all prose, UI text, buttons, labels
 - **IBM Plex Mono** (400, 500) — all identifiers, metadata, badges, section labels,
-  numeric values, the WARPATHS wordmark
+  numeric values
 
 Loaded via Google Fonts in `src/styles/global.css`.
 

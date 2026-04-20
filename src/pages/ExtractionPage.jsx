@@ -671,6 +671,12 @@ export default function ExtractionPage() {
     load();
   }, [authLoading, isClientAdmin, urlId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && !isClientAdmin && !urlId) {
+      navigate('/leaderboard');
+    }
+  }, [authLoading, isAuthenticated, isClientAdmin, urlId]);
+
   // ── List interactions ──────────────────────────────────────────────────────
   const handleTagFilter = (tagId) => { setActiveTagFilter(tagId); loadList(tagId); };
 
