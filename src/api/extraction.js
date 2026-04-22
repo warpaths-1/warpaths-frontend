@@ -2,7 +2,7 @@ import client from './client';
 
 export const ingestReport = (file) => {
   const form = new FormData();
-  form.append('pdf', file);
+  form.append('file', file);
   return client.post('/v1/report-extractions/ingest', form).then(r => r.data);
 };
 
