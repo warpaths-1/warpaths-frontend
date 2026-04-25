@@ -61,17 +61,21 @@ export default function ActorCard({ actor, capabilitiesOverview, onEdit, onRemov
           )}
         </div>
         <div className={styles.actions} onClick={stop}>
-          <Button variant="ghost" size="sm" onClick={onEdit}>
-            Edit
-          </Button>
-          <button
-            type="button"
-            className={styles.trashBtn}
-            onClick={onRemove}
-            title="Remove actor"
-          >
-            <Trash2 size={15} />
-          </button>
+          {onEdit && (
+            <Button variant="ghost" size="sm" onClick={onEdit}>
+              Edit
+            </Button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className={styles.trashBtn}
+              onClick={onRemove}
+              title="Remove actor"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       </button>
 

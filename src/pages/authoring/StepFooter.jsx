@@ -24,6 +24,8 @@ export default function StepFooter({
   saving = false,
   saveNextDisabled = false,
   saveNextTooltip,
+  saveExitDisabled = false,
+  saveExitTooltip,
   modeToggleDisabled = false,
   modeToggleTooltip,
 }) {
@@ -46,9 +48,15 @@ export default function StepFooter({
         borderTop: '1px solid var(--border-subtle)',
       }}
     >
-      <Button variant="ghost" disabled={saving} onClick={onSaveExit}>
-        Save draft & exit
-      </Button>
+      <span title={saveExitDisabled && saveExitTooltip ? saveExitTooltip : undefined}>
+        <Button
+          variant="ghost"
+          disabled={saving || saveExitDisabled}
+          onClick={onSaveExit}
+        >
+          Save draft & exit
+        </Button>
+      </span>
 
       <Button
         variant="ghost"

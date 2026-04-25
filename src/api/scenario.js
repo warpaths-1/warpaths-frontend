@@ -3,8 +3,12 @@ import client from './client';
 // GET /v1/scenarios returns { items: [...] } — unwrap here to match the
 // pattern in getClientExtractions / getClientTags. Catalogue 02_scenario.md
 // still documents a bare array; drift flagged in docs/response-shapes.md.
+// Filter archived client-side: server-side status filter is unverified,
+// and per product rule "one active Scenario per ReportExtraction per client"
+// the resume logic must not return archived candidates.
 export const listScenarios = (params) =>
-  client.get('/v1/scenarios', { params }).then(r => r.data?.items ?? []);
+  client.get('/v1/scenarios', { params })
+    .then(r => (r.data?.items ?? []).filter(s => s.status !== 'archived'));
 export const getScenario = (id) => client.get(`/v1/scenarios/${id}`).then(r => r.data);
 export const createScenario = (body) => client.post('/v1/scenarios', body).then(r => r.data);
 export const updateScenario = (id, body) => client.patch(`/v1/scenarios/${id}`, body).then(r => r.data);

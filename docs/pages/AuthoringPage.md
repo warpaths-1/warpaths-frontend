@@ -393,9 +393,35 @@ When `scenario.status === 'archived'`:
 - The teal "Scenario in progress" line is suppressed.
 - A read-only banner renders above the step body: `"This scenario is
   archived. Unarchive to edit."` in base-secondary text, inside a
-  bordered `--bg-secondary` panel.
-- "Save & next" is disabled with tooltip `"Scenario is archived"`.
-- No unarchive action is exposed in Phase 1 — unarchive UI is Phase 2.
+  bordered `--bg-secondary` panel. The banner contains a primary
+  `Unarchive` button rendered **disabled** with a `"Coming soon"`
+  monospace chip beside it; hover title `"Coming soon — unarchive
+  endpoint not yet available"`. Wired to render disabled because
+  `POST /v1/scenarios/:id/unarchive` is not implemented in the API
+  as of 2026-04-25 (last probed). When the endpoint ships, swap to
+  enabled + `useMutation` → invalidate `['scenario', id]`.
+- All Step 1 inputs (Input / Textarea / Select) render with
+  `disabled={true}` — visually dimmed and non-interactive.
+- Step 2 actor list renders read-only: per-actor `Edit` and trash
+  buttons are hidden, and the `+ Add actor` button is hidden.
+- Footer buttons:
+  - `Save draft & exit`: disabled with tooltip `"Scenario is
+    archived"`. (Earlier behavior — enabled — was a bug fixed in
+    Session 3.10.)
+  - `Save & next`: disabled with tooltip `"Scenario is archived"`.
+  - `Cancel`: enabled but skips the dirty-state confirmation Modal
+    since there are no edits to discard; navigates straight to
+    `/author`.
+  - `Back`: enabled (subject to `currentStep > 1`).
+  - Mode toggle (`Edit freely` / `Back to steps`): enabled.
+- Drawer / resume-or-create logic (`listScenarios`) filters out
+  archived candidates client-side, so archived scenarios are reached
+  only via direct URL — never via "click the same extraction again."
+  See `src/api/scenario.js`.
+- Resume-style cleanup of archived scenarios (Phase 2): a Scenario
+  list view with an Archived section + (eventually) hard delete is
+  blocked on `DELETE /v1/scenarios/:id` (currently 405 — see
+  API-REPO-ISSUES #4).
 
 ### Step 1 — Scenario framing
 

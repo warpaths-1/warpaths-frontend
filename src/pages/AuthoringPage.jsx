@@ -339,6 +339,12 @@ function AuthoringEditor({
   // creation mode it POSTs without running client-side required-field checks.
   const handleSaveExit = async () => {
     if (saving) return;
+    // Archived scenarios are read-only — no save path. Treat as plain navigate.
+    if (isArchived) {
+      onStepChange(1);
+      navigate('/author');
+      return;
+    }
     if (stepSaveRef.current?.save) {
       setSaving(true);
       try {
@@ -354,10 +360,11 @@ function AuthoringEditor({
   };
 
   // Cancel — "explicit discard-local intent." No server call under any branch.
-  // If the current step reports itself clean, skip the modal.
+  // If the current step reports itself clean, skip the modal. Archived
+  // scenarios are read-only so there are never edits to discard.
   const handleCancel = () => {
     if (saving) return;
-    const dirty = stepSaveRef.current?.isDirty?.() ?? false;
+    const dirty = !isArchived && (stepSaveRef.current?.isDirty?.() ?? false);
     if (!dirty) {
       onStepChange(1);
       navigate('/author');
@@ -389,6 +396,7 @@ function AuthoringEditor({
         scenarioId={scenarioId}
         creationMode={creationMode}
         onCreated={onCreated}
+        readOnly={isArchived}
       />
     );
   } else if (currentStep === 2) {
@@ -398,6 +406,7 @@ function AuthoringEditor({
         scenario={scenario}
         scenarioId={scenarioId}
         onNavigateToStep1={() => onStepChange(1)}
+        readOnly={isArchived}
       />
     );
   } else {
@@ -463,6 +472,9 @@ function AuthoringEditor({
       {scenario?.status === 'archived' && (
         <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
             fontSize: 'var(--text-sm)',
             fontFamily: 'var(--font-sans)',
             color: 'var(--text-secondary)',
@@ -474,7 +486,28 @@ function AuthoringEditor({
             borderRadius: 'var(--radius)',
           }}
         >
-          This scenario is archived. Unarchive to edit.
+          <span style={{ flex: 1 }}>This scenario is archived. Unarchive to edit.</span>
+          {/* No POST /v1/scenarios/:id/unarchive in API as of 2026-04-25;
+              render disabled with "Coming soon" chip per session-3.10 brief. */}
+          <span title="Coming soon — unarchive endpoint not yet available">
+            <Button variant="primary" disabled>
+              Unarchive
+            </Button>
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              fontFamily: 'var(--font-mono)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.10em',
+              color: 'var(--text-disabled)',
+              padding: '2px 6px',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 2,
+            }}
+          >
+            Coming soon
+          </span>
         </div>
       )}
 
@@ -493,6 +526,8 @@ function AuthoringEditor({
           saving={saving}
           saveNextDisabled={saveNextDisabled}
           saveNextTooltip={saveNextTooltip}
+          saveExitDisabled={isArchived}
+          saveExitTooltip={isArchived ? 'Scenario is archived' : undefined}
           modeToggleDisabled={creationMode}
           modeToggleTooltip={
             creationMode ? 'Available after first save' : undefined

@@ -185,6 +185,7 @@ export default function Step1Framing({
   scenarioId,
   creationMode = false,
   onCreated,
+  readOnly = false,
 }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -222,8 +223,11 @@ export default function Step1Framing({
   useImperativeHandle(
     saveRef,
     () => ({
-      isDirty,
+      isDirty: () => (readOnly ? false : isDirty()),
       save: async ({ draft = false } = {}) => {
+        // Archived (read-only) — no save path; treat as no-op success.
+        if (readOnly) return true;
+
         // Creation mode — POST to create the record. Draft exit skips validation
         // and lets us POST with fallback title even when the form is empty;
         // Save & next enforces validation like normal.
@@ -275,7 +279,7 @@ export default function Step1Framing({
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fields, scenarioId, creationMode]
+    [fields, scenarioId, creationMode, readOnly]
   );
 
   return (
@@ -302,6 +306,7 @@ export default function Step1Framing({
             value={fields.title}
             onChange={(e) => setField('title', e.target.value)}
             error={errors.title}
+            disabled={readOnly}
           />
         </FieldRow>
 
@@ -312,6 +317,7 @@ export default function Step1Framing({
               value={fields.category}
               onChange={(e) => setField('category', e.target.value)}
               error={errors.category}
+              disabled={readOnly}
             />
           }
           right={
@@ -320,6 +326,7 @@ export default function Step1Framing({
               value={fields.subcategory}
               onChange={(e) => setField('subcategory', e.target.value)}
               error={errors.subcategory}
+              disabled={readOnly}
             />
           }
         />
@@ -331,6 +338,7 @@ export default function Step1Framing({
             value={fields.scenario_narrative}
             onChange={(e) => setField('scenario_narrative', e.target.value)}
             error={errors.scenario_narrative}
+            disabled={readOnly}
           />
         </FieldRow>
 
@@ -341,6 +349,7 @@ export default function Step1Framing({
             value={fields.setting}
             onChange={(e) => setField('setting', e.target.value)}
             error={errors.setting}
+            disabled={readOnly}
           />
         </FieldRow>
 
@@ -356,6 +365,7 @@ export default function Step1Framing({
                 onChange={(v) => setTimeHorizon('planning_horizon', v)}
                 error={errors['time_horizon.planning_horizon']}
                 placeholder="Select…"
+                disabled={readOnly}
               />
               <HelperHint>The whole game timeframe</HelperHint>
             </div>
@@ -369,6 +379,7 @@ export default function Step1Framing({
                 onChange={(v) => setTimeHorizon('incident_horizon', v)}
                 error={errors['time_horizon.incident_horizon']}
                 placeholder="Select…"
+                disabled={readOnly}
               />
               <HelperHint>How long between each turn</HelperHint>
             </div>
@@ -381,6 +392,7 @@ export default function Step1Framing({
             value={fields.time_horizon.notes}
             onChange={(e) => setTimeHorizon('notes', e.target.value)}
             error={errors['time_horizon.notes']}
+            disabled={readOnly}
           />
         </FieldRow>
 
@@ -397,6 +409,7 @@ export default function Step1Framing({
                   onChange={(v) => setField('tier_minimum', v)}
                   error={errors.tier_minimum}
                   placeholder="Select…"
+                  disabled={readOnly}
                 />
               }
               right={
@@ -406,6 +419,7 @@ export default function Step1Framing({
                   value={fields.availability_window_days}
                   onChange={(e) => setField('availability_window_days', e.target.value)}
                   error={errors.availability_window_days}
+                  disabled={readOnly}
                 />
               }
             />

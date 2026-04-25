@@ -38,7 +38,7 @@ function parsePublishErrors(err) {
   return { isStep1: false, message: 'Publish failed. Please try again.' };
 }
 
-export default function Step2Actors({ saveRef, scenario, scenarioId, onNavigateToStep1 }) {
+export default function Step2Actors({ saveRef, scenario, scenarioId, onNavigateToStep1, readOnly = false }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -198,17 +198,19 @@ export default function Step2Actors({ saveRef, scenario, scenarioId, onNavigateT
                   capabilitiesOverview={
                     extraction?.actor_suggestions?.[idx]?.capabilities_overview ?? null
                   }
-                  onEdit={() => openEdit(idx)}
-                  onRemove={() => openRemove(idx)}
+                  onEdit={readOnly ? undefined : () => openEdit(idx)}
+                  onRemove={readOnly ? undefined : () => openRemove(idx)}
                 />
               ))}
             </div>
           )}
 
-          {/* Add actor */}
-          <Button variant="ghost" onClick={openAdd}>
-            + Add actor
-          </Button>
+          {/* Add actor — hidden in archived (read-only) mode */}
+          {!readOnly && (
+            <Button variant="ghost" onClick={openAdd}>
+              + Add actor
+            </Button>
+          )}
 
           {/* Publish error banner */}
           {publishError && (
