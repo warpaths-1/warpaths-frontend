@@ -10,16 +10,16 @@ import MappingCallout from './MappingCallout';
 import styles from './ActorEditor.module.css';
 
 const PRIORITY_OPTIONS = [
-  { value: '1', label: '1 — High' },
-  { value: '2', label: '2 — Medium' },
-  { value: '3', label: '3 — Low' },
+  { value: '1', label: 'High' },
+  { value: '2', label: 'Medium' },
+  { value: '3', label: 'Low' },
 ];
 
 function emptyFields() {
   return {
     name: '',
     role: '',
-    goal_items: [],
+    goals: [],
     behavior: '',
     history: '',
     constraints: '',
@@ -33,8 +33,9 @@ function fromActor(actor) {
   return {
     name: actor.name ?? '',
     role: actor.role ?? '',
-    goal_items: (actor.goal_items ?? []).map((g) => ({
-      goal: g.goal ?? '',
+    goals: (actor.goals ?? []).map((g) => ({
+      label: g.label ?? '',
+      description: g.description ?? '',
       priority: g.priority ?? 2,
     })),
     behavior: actor.behavior ?? '',
@@ -44,6 +45,10 @@ function fromActor(actor) {
     is_visible_to_player: actor.is_visible_to_player ?? false,
     relationships_overview: actor.relationships_overview ?? '',
   };
+}
+
+function isGoalValid(g) {
+  return g.label.trim().length > 0 && g.description.trim().length > 0;
 }
 
 const POSTURE_OPTIONS = [
@@ -72,34 +77,38 @@ export default function ActorEditor({ open, onClose, actor, capabilitiesOverview
   const addGoal = () => {
     setFields((f) => ({
       ...f,
-      goal_items: [...f.goal_items, { goal: '', priority: 2 }],
+      goals: [...f.goals, { label: '', description: '', priority: 2 }],
     }));
   };
 
   const updateGoal = (idx, key, value) => {
     setFields((f) => ({
       ...f,
-      goal_items: f.goal_items.map((g, i) => (i === idx ? { ...g, [key]: value } : g)),
+      goals: f.goals.map((g, i) => (i === idx ? { ...g, [key]: value } : g)),
     }));
   };
 
   const removeGoal = (idx) => {
     setFields((f) => ({
       ...f,
-      goal_items: f.goal_items.filter((_, i) => i !== idx),
+      goals: f.goals.filter((_, i) => i !== idx),
     }));
   };
+
+  const allGoalsValid = fields.goals.every(isGoalValid);
+  const canSave = fields.name.trim().length > 0 && allGoalsValid;
 
   const handleSave = () => {
     if (!fields.name?.trim()) {
       setNameError('Required');
       return;
     }
-    // Convert priority strings back to numbers before emitting
+    if (!allGoalsValid) return;
     const out = {
       ...fields,
-      goal_items: fields.goal_items.map((g) => ({
-        goal: g.goal,
+      goals: fields.goals.map((g) => ({
+        label: g.label.trim(),
+        description: g.description.trim(),
         priority: Number(g.priority),
       })),
     };
@@ -134,32 +143,49 @@ export default function ActorEditor({ open, onClose, actor, capabilitiesOverview
 
           <div className={styles.fieldRow}>
             <div className={styles.sectionLabel}>GOALS</div>
-            {fields.goal_items.map((goal, idx) => (
-              <div key={idx} className={styles.goalRow}>
-                <div className={styles.goalInputWrap}>
-                  <Input
-                    value={goal.goal}
-                    onChange={(e) => updateGoal(idx, 'goal', e.target.value)}
-                    placeholder="Goal description"
+            {fields.goals.map((goal, idx) => {
+              const invalid = !isGoalValid(goal);
+              return (
+                <div key={idx} className={styles.goalBlock}>
+                  <div className={styles.goalLabelRow}>
+                    <div className={styles.goalLabelWrap}>
+                      <Input
+                        value={goal.label}
+                        onChange={(e) => updateGoal(idx, 'label', e.target.value)}
+                        placeholder="Label (short name)"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.goalTrash}
+                      onClick={() => removeGoal(idx)}
+                      title="Remove goal"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    value={goal.description}
+                    onChange={(e) => updateGoal(idx, 'description', e.target.value)}
+                    placeholder="Description"
                   />
+                  <div className={styles.goalPriorityWrap}>
+                    <Select
+                      label="PRIORITY"
+                      options={PRIORITY_OPTIONS}
+                      value={String(goal.priority)}
+                      onChange={(v) => updateGoal(idx, 'priority', v)}
+                    />
+                  </div>
+                  {invalid && (
+                    <div className={styles.goalError}>
+                      Label and description required
+                    </div>
+                  )}
                 </div>
-                <div className={styles.goalPriorityWrap}>
-                  <Select
-                    options={PRIORITY_OPTIONS}
-                    value={String(goal.priority)}
-                    onChange={(v) => updateGoal(idx, 'priority', v)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={styles.goalTrash}
-                  onClick={() => removeGoal(idx)}
-                  title="Remove goal"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
             <Button variant="ghost" size="sm" onClick={addGoal}>
               + Add goal
             </Button>
@@ -225,7 +251,7 @@ export default function ActorEditor({ open, onClose, actor, capabilitiesOverview
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSave}>
+          <Button variant="primary" onClick={handleSave} disabled={!canSave}>
             Save actor
           </Button>
         </div>

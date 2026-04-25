@@ -13,6 +13,8 @@ const POSTURE_LABELS = {
   engaged: 'Engaged',
 };
 
+const PRIORITY_LABELS = { 1: 'High', 2: 'Medium', 3: 'Low' };
+
 function NotSet() {
   return <span className={styles.notSet}>Not set</span>;
 }
@@ -38,7 +40,7 @@ export default function ActorCard({ actor, capabilitiesOverview, onEdit, onRemov
     ? POSTURE_LABELS[actor.current_posture] ?? actor.current_posture
     : null;
 
-  const goals = actor.goal_items ?? [];
+  const goals = actor.goals ?? [];
 
   return (
     <Card variant="default">
@@ -80,12 +82,17 @@ export default function ActorCard({ actor, capabilitiesOverview, onEdit, onRemov
               <ol className={styles.goalList}>
                 {goals.map((g, i) => (
                   <li key={i}>
-                    {g.goal || <NotSet />}
-                    {g.priority != null && (
-                      <span className={styles.goalPriority}>
-                        {' '}
-                        (priority {g.priority})
-                      </span>
+                    <div className={styles.goalLabel}>
+                      {g.label || <NotSet />}
+                      {g.priority != null && (
+                        <span className={styles.goalPriority}>
+                          {' '}
+                          (priority {PRIORITY_LABELS[g.priority] ?? g.priority})
+                        </span>
+                      )}
+                    </div>
+                    {g.description && (
+                      <div className={styles.goalDescription}>{g.description}</div>
                     )}
                   </li>
                 ))}

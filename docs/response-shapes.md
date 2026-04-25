@@ -2,6 +2,8 @@
 
 Captured from live API (`https://warpaths-api.onrender.com`) on 2026-04-22 under a ClientAdmin JWT (client_id `ad412b27-deca-425b-be66-86e4638fe6e9`).
 
+**Audit method:** Each section is grounded in a live response capture. Per-section `Last probed` dates indicate the most recent verification. When the API contract changes, re-probe the affected endpoint and update both the field table and the date. Discrepancies between the live response and the API catalogue (`warpaths-api/docs/catalogue/`) are recorded as **catalogue drift** and require a backend doc fix.
+
 Each section documents:
 1. Observed field → type mapping, with `| null` where the live response contained null.
 2. Which of these fields the frontend consumes today (cross-referenced against `docs/api-surface.md`).
@@ -10,6 +12,8 @@ Each section documents:
 ---
 
 ## 1. `GET /v1/report-extractions/:id`
+
+_Last probed: 2026-04-22._
 
 Returns the extraction payload directly (no wrapper envelope). Same shape as the 200 body of `POST /v1/report-extractions/ingest`.
 
@@ -136,6 +140,8 @@ No top-level nulls observed in the sample response. All of the fields above were
 
 ## 2. `GET /v1/clients/:id`
 
+_Last probed: 2026-04-22._
+
 Flat object, no envelope.
 
 | Field | Type | Nullable |
@@ -179,6 +185,8 @@ Consumed today: `custom_reports_limit`, `reports_used_this_period`.
 
 ## 3. `GET /v1/clients/:clientId/extractions`
 
+_Last probed: 2026-04-22._
+
 Envelope: `{ items: ClientExtractionSummary[] }`.
 
 ### `ClientExtractionSummary` (per-item)
@@ -215,6 +223,8 @@ None — the per-row fields `api-surface.md` lists all exist in the live respons
 
 ## 3. Scenario — `actors[]` item shape
 
+_Last probed: 2026-04-24._
+
 The `current_posture` field on a Scenario actor is an **enum**, not a free-text string.
 Valid values: `dormant | observing | active | escalating | de_escalating | engaged`.
 
@@ -222,13 +232,32 @@ Valid values: `dormant | observing | active | escalating | de_escalating | engag
 |---|---|
 | `name` | string |
 | `role` | string |
-| `goal_items` | `{ goal: string, priority: number }[]` |
+| `goals` | `GoalItem[]` — see below |
 | `behavior` | string |
 | `history` | string |
 | `constraints` | string |
 | `current_posture` | enum — see values above |
 | `is_visible_to_player` | boolean |
 | `relationships_overview` | string |
+
+### `GoalItem`
+
+```
+{
+  label: string,        // short name, required
+  description: string,  // longer narrative, required
+  priority: 1 | 2 | 3   // 1=High, 2=Medium, 3=Low
+}
+```
+
+All three fields are required by the API (Pydantic `GoalItem` schema). Priority is an
+integer in `{1, 2, 3}`; the convention `1=High, 2=Medium, 3=Low` is documented in
+`warpaths-api/docs/catalogue/02b_actor.md` and `09_player_perspective.md`.
+
+**Important:** previous frontend code used `goal_items: [{ goal, priority }]`. That
+shape was silently dropped by the API (Pydantic `extra="ignore"` default), so saves
+appeared to succeed but stored an empty `goals` list. Always use `goals` with the
+three-field `GoalItem` shape above.
 
 ### Catalogue drift
 
@@ -248,7 +277,9 @@ string (e.g. "Leading efforts in promoting space governance"). It is NOT the sam
 
 ## 4. `GET /v1/scenarios` — list envelope
 
-Tested 2026-04-24. The live response is wrapped in an `items` envelope:
+_Last probed: 2026-04-24._
+
+The live response is wrapped in an `items` envelope:
 
 ```json
 { "items": [ <Scenario>, <Scenario>, ... ] }

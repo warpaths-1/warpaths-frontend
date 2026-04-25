@@ -23,19 +23,36 @@ function rowTitle(row) {
   return row.display_name || row.report_title || 'Untitled extraction';
 }
 
+// Derive a short label from an objective string per AuthoringPage spec
+// extraction-mapping rule: first sentence or first 50 chars (whichever is
+// shorter), trimmed and stripped of trailing punctuation.
+function deriveLabelFromObjective(objective) {
+  const trimmed = (objective ?? '').trim();
+  if (!trimmed) return '';
+  const sentenceMatch = trimmed.match(/^[^.!?]+[.!?]?/);
+  const firstSentence = sentenceMatch ? sentenceMatch[0] : trimmed;
+  const candidate = firstSentence.length <= 50 ? firstSentence : trimmed.slice(0, 50);
+  return candidate.replace(/[\s.,;:!?]+$/, '').trim();
+}
+
 function buildScenarioBodyFromExtraction(re) {
   const ss = re?.scenario_suggestion ?? {};
 
   // Map actor_suggestions[] → actors[] per AuthoringPage spec mapping table.
   // capabilities_overview has no target field — surfaced via MappingCallout at edit time.
-  // objectives[] strings each become a goal_item with priority 2 (medium default).
+  // actor_suggestion.objectives is a string array (no priority on extraction
+  // side); each string becomes a goal {label, description, priority: 2}.
   const actors = (re?.actor_suggestions ?? []).map((as) => ({
     name: as.name ?? '',
     role: as.role ?? '',
     current_posture: 'observing', // extraction narrative preserved separately via MappingCallout
     relationships_overview: as.relationships_overview ?? '',
     is_visible_to_player: as.is_visible_to_player ?? false,
-    goal_items: (as.objectives ?? []).map((obj) => ({ goal: obj, priority: 2 })),
+    goals: (as.objectives ?? []).map((obj) => ({
+      label: deriveLabelFromObjective(obj),
+      description: obj,
+      priority: 2,
+    })),
     behavior: '',
     history: '',
     constraints: '',
