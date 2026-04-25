@@ -481,8 +481,11 @@ Expanded — a detail pane below the header row (separated by a 1px
 string fields render as `"Not set"` in 11px mono secondary italic.
 
 Sections (in order):
-- `GOALS` — numbered list (`<ol>`) of goal items. Each entry:
-  `{goal} (priority {n})`. Empty array renders `"Not set"`.
+- `GOALS` — numbered list (`<ol>`) of goals from `actor.goals[]`. Each
+  entry shows the `label` (base primary, weight 500) on the first line
+  with `(priority {label})` appended (display label `"High|Medium|Low"`
+  in 11px mono secondary), and `description` on a secondary line beneath
+  in base secondary text. Empty array renders `"Not set"`.
 - `CURRENT POSTURE` — the display label for the enum value
   (e.g. `"Observing"`).
 - `BEHAVIOR`, `HISTORY`, `CONSTRAINTS` — free-text fields,
@@ -507,8 +510,20 @@ Drawer does not collapse or expand the card.
 
 - `name` — Input, required
 - `role` — Input
-- `goal_items[]` — repeating row: `goal` Input + `priority` Select (1/2/3),
-  with `"+ Add goal"` button
+- `goals[]` — repeating goal block, three required fields each (per
+  OpenAPI `GoalItem`: `{label, description, priority}` all required):
+  - `label` — Input (short name, e.g. `"Maintain alliances"`)
+  - `description` — Textarea, 2 rows (longer explanation)
+  - `priority` — Select (`1 | 2 | 3`, displayed as `"High | Medium | Low"`)
+  Each goal renders as a bordered card-like block (subtle
+  `--border-subtle` container): `label` + remove `[×]` on the first
+  line, `description` textarea on the second line, `priority` select on
+  the third line. The `"+ Add goal"` ghost button sits below the list;
+  no upper limit. Client-side validation: trim before checking; if any
+  goal block has empty `label` or `description`, disable the editor's
+  Save button and show inline error on the offending block:
+  `"Label and description required"`. Empty `goals` array on save is
+  allowed (API accepts `[]`).
 - `behavior` — Textarea, 3 rows
 - `history` — Textarea, 3 rows
 - `constraints` — Textarea, 3 rows (with 11px mono secondary hint:
@@ -527,7 +542,7 @@ extraction, seed `actors[]` from `re.actor_suggestions[]` with this mapping:
 | `current_posture` | — | Default to `'observing'` on pre-fill. The extraction's narrative `current_posture` is NOT the Scenario enum — it's a free-text suggestion surfaced in MappingCallout, not written to the actor record directly. |
 | `relationships_overview` | `actor_suggestion.relationships_overview` | |
 | `is_visible_to_player` | `actor_suggestion.is_visible_to_player` | |
-| `goal_items[]` | `actor_suggestion.objectives[]` | Map each objective string → `{ goal: objective, priority: 2 }`. Priority defaults to 2 (medium); author edits if needed. |
+| `goals[]` | `actor_suggestion.objectives[]` | `actor_suggestion.objectives` is a string array (verified via console probe 2026-04-25). Map each objective string → `{ label, description, priority }`: `description` is the full objective string; `label` is a short summary derived from the description (first sentence or first 50 chars, trimmed and stripped of trailing punctuation, whichever is shorter); `priority` defaults to `2` (medium — extraction does not carry priority). Author edits any of the three. |
 | `behavior` | — | Blank. Author writes. |
 | `history` | — | Blank. Author writes. |
 | `constraints` | — | Blank. Author writes. |
