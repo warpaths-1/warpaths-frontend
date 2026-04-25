@@ -6,6 +6,7 @@ For each endpoint: HTTP method + path, the API function, which page(s) call it, 
 
 Page status (April 2026):
 - **Built:** `LoginPage`, `ExtractionPage`
+- **In progress:** `AuthoringPage` (Session 3 — actors wired, implicit publish wired)
 - **Stubs** (return `null`, no API calls yet): `AccountPage`, `GamePage`, `LeaderboardPage`, `OrgManagementPage`, `SignupPage`
 
 "(unused)" below means the API function exists but no built page calls it yet. Those are waiting on the stub pages.
@@ -43,9 +44,11 @@ Axios instance only — no endpoints. Attaches `Authorization: Bearer <token>` f
 - **Error status codes handled:** `413` (file too large), `422` (bad PDF), other → `error.response.data.detail`.
 
 ### GET `/v1/report-extractions/:id` — `getReportExtraction(id)`
-- **Used by:** `ExtractionPage`
+- **Used by:** `ExtractionPage`, `AuthoringPage` (two distinct uses):
+  1. Picker fetch — full RE loaded before the Scenario POST body is built; seeds `['extraction', id]`
+  2. Step 2 MappingCallout — fetched on Step 2 mount when `scenario.source_extraction_id` is non-null, matched by actor index to surface `capabilities_overview` in the ActorEditor. Uses the same `['extraction', id]` key — no duplicate fetch if already cached from the picker.
 - **Response fields used:**
-  - `id`
+  - `report_extraction_id` (as `id`)
   - `extraction_status` (rendered in `Badge`)
   - `confidence_score` (0–1, rendered in `ConfidenceMeter`)
   - `extraction_notes`
@@ -61,7 +64,11 @@ Axios instance only — no endpoints. Attaches `Authorization: Bearer <token>` f
   - `scenario_suggestion.suggested_turn_count`
   - `actor_suggestions[].name`
   - `actor_suggestions[].role`
-  - `actor_suggestions[].stance`
+  - `actor_suggestions[].objectives[]` (mapped → `goal_items[]` at priority 2)
+  - `actor_suggestions[].current_posture`
+  - `actor_suggestions[].is_visible_to_player`
+  - `actor_suggestions[].relationships_overview`
+  - `actor_suggestions[].capabilities_overview` (surfaced via MappingCallout — not written to actor fields)
   - `inject_seeds[].seed_text`
   - `inject_seeds[].turn_suggestion`
   - `inject_seeds.length` (toast when 1 ≤ n < 5)
@@ -69,7 +76,7 @@ Axios instance only — no endpoints. Attaches `Authorization: Bearer <token>` f
 
 ### GET `/v1/clients/:clientId/extractions` — `getClientExtractions(clientId, params)`
 - **Query params:** `tag_id` (optional, for filter)
-- **Used by:** `ExtractionPage` (left master list, ClientAdmin only)
+- **Used by:** `ExtractionPage` (left master list, ClientAdmin only); `AuthoringPage` (extraction picker drawer — no `tag_id`, sorts client-side by `extracted_at`)
 - **Response shape:** array of `ClientExtraction` summaries
 - **Response fields used per row:**
   - `id`
@@ -109,7 +116,7 @@ Axios instance only — no endpoints. Attaches `Authorization: Bearer <token>` f
 - **Response fields used:** none — invalidates the same two keys as `applyTag`.
 
 ### GET `/v1/clients/:clientId/tags` — `getClientTags(clientId)`
-- **Used by:** `ExtractionPage` (lazy — only once the tag dropdown is opened; drives the left-column filter chips too)
+- **Used by:** `ExtractionPage` (lazy — only once the tag dropdown is opened; drives the left-column filter chips too); `AuthoringPage` ExtractionPickerDrawer (tag filter chip row above the list — multi-select AND, client-side filter). Shared `['tags', clientId]` cache across pages.
 - **Response shape:** array of `ClientTag`
 - **Response fields used per row:** `id`, `name`.
 
@@ -153,10 +160,55 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 
 ## scenario.js
 
-| Method | Path | Function | Used by |
-|---|---|---|---|
-| GET | `/v1/scenarios` | `getScenarios` | (unused) |
-| GET | `/v1/scenarios/:id` | `getScenario` | (unused) |
+### GET `/v1/scenarios` — `listScenarios(params)`
+- **Live response shape:** `{ items: Scenario[] }`. The catalogue at
+  `warpaths-api/docs/api/02_scenario.md` documents this as a bare array —
+  that is drift (see `docs/response-shapes.md` §4). The frontend function
+  unwraps `.items` so consumers receive a plain array.
+- **Used by:** `AuthoringPage` ExtractionPickerDrawer — called inside the
+  row-click mutation with `{ source_extraction_id }` to check whether a
+  Scenario already exists for the picked extraction. Length-0 → POST
+  (create). Length ≥1 → resume: seed `['scenario', item.id]` cache and
+  navigate. Enforces the product rule that a ReportExtraction has at
+  most one Scenario.
+- **Filter params supported:** `source_extraction_id`, `status`,
+  `client_id` (staff only), `category`.
+
+### GET `/v1/scenarios/:id` — `getScenario(id)`
+- **Used by:** `AuthoringPage` (loads the scenario record on `/author/:scenario_id` into `['scenario', scenarioId]`)
+- **Response fields used (Session 2 — Step 1 Framing):**
+  - `id`
+  - `title`, `category`, `subcategory`, `scenario_narrative`
+  - `setting`
+  - `time_horizon.planning_horizon`, `time_horizon.incident_horizon`, `time_horizon.notes`
+  - `tier_minimum`
+  - `availability_window_days`
+- **Error status codes handled:** `404` / `403` → "Scenario not found" state; other → generic "Could not load scenario".
+
+### POST `/v1/scenarios` — `createScenario(body)`
+- **Body (creation mode / deferred blank):** `{ source_extraction_id: null, title: form.title || "Untitled scenario" }` plus any other filled Step 1 fields (`category`, `subcategory`, `scenario_narrative`, `setting`, `time_horizon`, `tier_minimum`, `availability_window_days`). Fires on the first save at `/author/new` — never on the Blank tile click itself. Deferring eliminates orphan records when users cancel before saving.
+- **Body (From extraction):** `{ source_extraction_id, title, category, subcategory, scenario_narrative, setting, time_horizon, actors[] }`. The `actors[]` array is mapped from `actor_suggestions[]` per the Session 3 spec mapping table — name, role, current_posture, relationships_overview, is_visible_to_player, goal_items (from objectives[] at priority 2). behavior/history/constraints are empty strings (author-written).
+- **Used by:** `AuthoringPage` (Step 1 first-save in creation mode + extraction picker row click)
+- **Response fields used:** `id` — used for `setQueryData(['scenario', id], …)` and `navigate('/author/:id', { replace: true })`.
+
+### PATCH `/v1/scenarios/:id` — `updateScenario(id, body)`
+- **Body (Step 1):** partial — only dirty framing fields. Nested `time_horizon` sent as a full object whenever any sub-field changed.
+- **Body (Step 2):** `{ actors: [...fullArray] }` — replaces the actors array in full on every add, edit, or remove. Never sends a partial diff. Optimistic update: cache is set immediately, rolled back on error.
+- **Used by:** `AuthoringPage` (Step 1 "Save & next"; Step 2 actor add/edit/remove)
+- **Response fields used:** full updated Scenario — written straight into `['scenario', scenarioId]` cache.
+- **Error status codes handled (Step 1):** `422` → FastAPI `detail[]` mapped back onto per-field inline errors, including nested `time_horizon.*` paths; falls back to `_general` error banner for unknown fields.
+- **Error status codes handled (Step 2):** actor PATCH errors trigger toast + optimistic rollback.
+
+### POST `/v1/scenarios/:id/publish` — `publishScenario(id)`
+- **Used by:** `AuthoringPage` (Step 2 implicit publish on advance to Step 3 — fires silently when scenario is `draft` and title + narrative + category + subcategory + ≥3 actors are all present)
+- **Response fields used:** full updated Scenario with `status: 'published'` — written into `['scenario', scenarioId]` cache. The teal-bright `"● Scenario in progress"` status line renders whenever any Scenario record (draft or published) is loaded; it does not change label on publish.
+- **Error status codes handled:** `422` with Step 1 field errors → banner in Step 2 with "Return to Step 1" link that calls `onStepChange(1)`. Other 422 errors → inline error banner in Step 2.
+
+### POST `/v1/scenarios/:id/archive` — `archiveScenario(id)`
+- (unused — wiring lands in a later session)
+
+### DELETE `/v1/scenarios/:id` — `deleteScenario(id)`
+- (unused — wiring lands in a later session)
 
 ---
 
@@ -176,3 +228,4 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 |---|---|
 | `LoginPage` | `POST /auth/login` |
 | `ExtractionPage` | `POST /v1/report-extractions/ingest`, `GET /v1/report-extractions/:id`, `GET /v1/clients/:clientId`, `GET /v1/clients/:clientId/extractions`, `GET /v1/clients/:clientId/extractions/:id`, `PATCH /v1/clients/:clientId/extractions/:id`, `DELETE /v1/clients/:clientId/extractions/:id`, `POST /v1/clients/:clientId/extractions/:id/tags`, `DELETE /v1/clients/:clientId/extractions/:id/tags/:tagId`, `GET /v1/clients/:clientId/tags`, `POST /v1/clients/:clientId/tags` |
+| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish` |

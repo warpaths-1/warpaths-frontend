@@ -12,12 +12,23 @@
   flex-shrink: 0;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.hexMark {
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
 .wordmark {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  color: var(--text-primary);
+  font-family: 'Black Ops One', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--accent-red);
   text-decoration: none;
 }
 

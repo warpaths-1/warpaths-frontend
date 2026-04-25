@@ -1,0 +1,75 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.fieldRow {
+  margin-bottom: var(--space-5);
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.goalRow {
+  display: grid;
+  grid-template-columns: 1fr 140px 32px;
+  gap: var(--space-2);
+  align-items: end;
+  margin-bottom: var(--space-2);
+}
+
+.goalInputWrap,
+.goalPriorityWrap {
+  /* grid columns handle sizing */
+}
+
+.goalTrash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  /* Align with the input/select field, not their label */
+  margin-bottom: 2px;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.goalTrash:hover {
+  color: var(--accent-red);
+  background: var(--bg-elevated);
+}
+
+.aiHint {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}

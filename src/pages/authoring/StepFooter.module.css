@@ -1,0 +1,7 @@
+/* Cancel button — ghost variant with a red-tinted hover cue to signal the
+   discard intent without using the full destructive variant (too heavy for
+   an omnipresent footer action). The base Button styles still apply via
+   className composition; this only overrides the hover color. */
+.cancelBtn:hover:not(:disabled) {
+  color: var(--accent-red) !important;
+}

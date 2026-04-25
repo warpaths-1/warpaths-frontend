@@ -41,8 +41,8 @@ All pages use `PageShell`. Two layout modes exist:
 The `Header` component renders on every authenticated page. Height `56px`.
 Primary background, `border-bottom: 1px solid var(--border-subtle)`.
 
-- Left: `"WARPATHS"` wordmark — IBM Plex Mono, 13px, `letter-spacing: 0.18em`,
-  `font-weight: 500`, primary text color
+- Left: SVG hex mark (30×29, hex polygon with red stroke + red italic "W") + `"WARPATHS"` wordmark — Black Ops One, 18px, `letter-spacing: 0.04em`,
+  `font-weight: 400`, primary text color. SVG sits 10px left of the wordmark.
 - Right: user display name + ChevronDown icon — 12px, secondary text color.
   Dropdown on click: secondary background, subtle border, items for
   My Account, Leaderboard, Log out. Org admins also see Org Management.

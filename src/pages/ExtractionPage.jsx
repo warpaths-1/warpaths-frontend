@@ -184,54 +184,6 @@ function ClaimCard({ body, citations }) {
   );
 }
 
-function StatGrid({ children }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{children}</div>;
-}
-
-function StatCell({ label, children, fullWidth }) {
-  return (
-    <div style={{
-      background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)',
-      borderRadius: 3, padding: '10px 12px',
-      gridColumn: fullWidth ? '1 / -1' : undefined,
-    }}>
-      <div style={{
-        fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-        letterSpacing: '0.10em', color: 'var(--text-secondary)', marginBottom: 4,
-      }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ConfidenceMeter({ label, value }) {
-  const pct = Math.round((value ?? 0) * 100);
-  const fillColor = value >= 0.70 ? 'var(--accent-teal)' : value >= 0.50 ? 'var(--accent-amber)' : 'var(--accent-red)';
-  const textColor = value >= 0.70 ? 'var(--accent-teal-bright)' : value >= 0.50 ? 'var(--accent-amber)' : 'var(--accent-red)';
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{
-        fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-        letterSpacing: '0.10em', color: 'var(--text-secondary)', marginBottom: 5,
-      }}>
-        {label}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, height: 4, background: 'var(--bg-elevated)', borderRadius: 2 }}>
-          <div style={{ width: `${pct}%`, height: '100%', background: fillColor, borderRadius: 2 }} />
-        </div>
-        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: textColor, minWidth: 32, textAlign: 'right' }}>
-          {pct}%
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // ── Tab content ───────────────────────────────────────────────────────────────
 
 function NumberedList({ items }) {
@@ -304,8 +256,8 @@ function TabGameBrief({ re }) {
 
       <SectionDivider />
       <SectionLabel>TIME HORIZON</SectionLabel>
-      <FieldBlock label="PLANNING HORIZON">{timeHorizon.planning_horizon || '—'}</FieldBlock>
-      <FieldBlock label="INCIDENT HORIZON">{timeHorizon.incident_horizon || '—'}</FieldBlock>
+      <FieldBlock label="CRISIS HORIZON">{timeHorizon.planning_horizon || '—'}</FieldBlock>
+      <FieldBlock label="TURN HORIZON">{timeHorizon.incident_horizon || '—'}</FieldBlock>
       <FieldBlock label="NOTES" variant="secondary">{timeHorizon.notes || '—'}</FieldBlock>
 
       <SectionDivider />
@@ -498,9 +450,24 @@ function TabInjectSeeds({ re }) {
   );
 }
 
-function TabAdminNotes({ value, onChange, onBlur, savedVisible }) {
+function TabAdminNotes({ ce, value, onChange, onBlur, savedVisible }) {
+  const scenarioIds = ce?.scenario_ids || [];
   return (
     <div style={{ padding: '20px 20px' }}>
+      <FieldBlock label="ADDED" variant="mono">{formatDate(ce?.created_at)}</FieldBlock>
+      <FieldBlock label="LINKED SCENARIOS">
+        {scenarioIds.length === 0 ? (
+          <span style={{ color: 'var(--text-secondary)' }}>None</span>
+        ) : (
+          <div>
+            <div style={{ marginBottom: 6 }}>{scenarioIds.length}</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {scenarioIds.map(id => <span key={id}>{id}</span>)}
+            </div>
+          </div>
+        )}
+      </FieldBlock>
+      <SectionDivider />
       <SectionLabel>ADMIN NOTES</SectionLabel>
       <Textarea
         placeholder="Add notes — authoring decisions, quality observations, follow-up items…"
@@ -518,69 +485,6 @@ function TabAdminNotes({ value, onChange, onBlur, savedVisible }) {
   );
 }
 
-function TabExtractionDetails({ re, reportsUsed, effectiveLimit, isStaff }) {
-  const usedDisplay = reportsUsed != null && effectiveLimit != null
-    ? `${reportsUsed} of ${effectiveLimit} this period`
-    : '—';
-  const notes = re?.generation_notes || {};
-  const hasNotes = !!(notes.limits || notes.known_gaps);
-  const pdfRef = re?.source_pdf_ref || {};
-
-  return (
-    <div style={{ padding: '20px 20px' }}>
-      {hasNotes && (
-        <div style={{ marginBottom: 18 }}>
-          <Card variant="warning">
-            <div style={{ padding: '14px 16px' }}>
-              {notes.limits && (
-                <FieldBlock label="EXTRACTION LIMITS" variant="secondary">{notes.limits}</FieldBlock>
-              )}
-              {notes.known_gaps && (
-                <div style={{ marginBottom: 0 }}>
-                  <div style={{
-                    fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-                    letterSpacing: '0.10em', color: 'var(--text-secondary)', marginBottom: 5,
-                  }}>
-                    KNOWN GAPS
-                  </div>
-                  <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-secondary)', lineHeight: 1.65 }}>
-                    {notes.known_gaps}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      <SectionDivider />
-      <StatGrid>
-        <StatCell label="Status"><Badge status={re?.extraction_status || 'draft'} /></StatCell>
-        <StatCell label="Extraction ID">
-          {re?.report_extraction_id ? `${re.report_extraction_id.slice(0, 12)}…` : '—'}
-        </StatCell>
-        <StatCell label="Source Type">{pdfRef.source_type || '—'}</StatCell>
-        <StatCell label="SHA-256 Fingerprint">
-          {pdfRef.sha256 ? `${pdfRef.sha256.slice(0, 16)}…` : '—'}
-        </StatCell>
-        <StatCell label="Extractions Used" fullWidth>{usedDisplay}</StatCell>
-      </StatGrid>
-
-      <div style={{ height: 12 }} />
-      <FieldBlock label="EXTRACTED AT" variant="mono">{formatDate(re?.extracted_at)}</FieldBlock>
-      <FieldBlock label="FRAMEWORK TIER" variant="mono">{re?.suggested_framework_tier || '—'}</FieldBlock>
-
-      {isStaff && (
-        <>
-          <SectionDivider />
-          <SectionLabel>STAFF</SectionLabel>
-          <FieldBlock label="RECORD CREATED" variant="mono">{formatDate(re?.created_at)}</FieldBlock>
-          <FieldBlock label="SCHEMA VERSION" variant="mono">{re?.schema_version || '—'}</FieldBlock>
-        </>
-      )}
-    </div>
-  );
-}
 
 // ── Interaction sub-components ────────────────────────────────────────────────
 
@@ -615,8 +519,8 @@ function ListItemTagChip({ label }) {
 
 function ListItem({ ce, selected, onClick }) {
   const title = ce.display_name || ce.report_title || 'Untitled';
-  const date = ce.extracted_at
-    ? new Date(ce.extracted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const date = ce.created_at
+    ? new Date(ce.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
   const showBadge = ce.extraction_status === 'failed' || ce.extraction_status === 'pending';
   const hasScenarios = !!(ce.scenario_ids?.length);
@@ -809,21 +713,18 @@ const TABS_ADMIN = [
   { key: 'actors',  label: 'Actors' },
   { key: 'seeds',   label: 'Inject Seeds' },
   { key: 'notes',   label: 'Admin Notes' },
-  { key: 'details', label: 'Extraction Details' },
 ];
 const TABS_USER = [
   { key: 'brief',   label: 'Game Brief' },
   { key: 'report',  label: 'Source Report' },
   { key: 'actors',  label: 'Actors' },
   { key: 'seeds',   label: 'Inject Seeds' },
-  { key: 'details', label: 'Extraction Details' },
 ];
 const TABS_PUBLIC = [
   { key: 'brief',   label: 'Game Brief' },
   { key: 'report',  label: 'Source Report', disabled: true },
   { key: 'actors',  label: 'Actors',        disabled: true },
   { key: 'seeds',   label: 'Inject Seeds',  disabled: true },
-  { key: 'details', label: 'Extraction Details', disabled: true },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -841,7 +742,7 @@ export default function ExtractionPage() {
   const resolvedUser = user;
   const authLoading = isAuthenticated && !user;
 
-  const isClientAdmin = !!(resolvedUser?.client_id);
+  const isClientAdmin = resolvedUser?.scope === 'client_admin';
   const clientId = resolvedUser?.client_id;
 
   // ── UI state ───────────────────────────────────────────────────────────────
@@ -853,7 +754,6 @@ export default function ExtractionPage() {
   const [selectedCeId, setSelectedCeId] = useState(null);
   const [activeTagFilter, setActiveTagFilter] = useState(null);
   const [currentReId, setCurrentReId] = useState(urlId ?? null);
-  const [tagsEnabled, setTagsEnabled] = useState(false);
 
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -897,7 +797,7 @@ export default function ExtractionPage() {
   const tagsQuery = useQuery({
     queryKey: ['tags', clientId],
     queryFn: () => getClientTags(clientId),
-    enabled: !!(isClientAdmin && clientId && tagsEnabled),
+    enabled: !authLoading && isClientAdmin && !!clientId,
   });
 
   // ── Derived query data ─────────────────────────────────────────────────────
@@ -1097,7 +997,7 @@ export default function ExtractionPage() {
   };
 
   // ── Quota ──────────────────────────────────────────────────────────────────
-  const effectiveLimit = clientData?.custom_reports_limit ?? clientData?.plan_reports_limit ?? null;
+  const effectiveLimit = clientData?.custom_reports_limit ?? null;
   const reportsUsed = clientData?.reports_used_this_period ?? 0;
   const remaining = effectiveLimit != null ? effectiveLimit - reportsUsed : null;
   const quotaExhausted = remaining !== null && remaining <= 0;
@@ -1180,8 +1080,6 @@ export default function ExtractionPage() {
     </div>
   );
 
-  const isStaff = resolvedUser?.scope === 'bubble' || resolvedUser?.role === 'warpaths_staff';
-
   const renderResultContent = ({ inMasterDetail = false } = {}) => {
     const tabs = !isAuthenticated
       ? TABS_PUBLIC
@@ -1227,7 +1125,7 @@ export default function ExtractionPage() {
                 <AppliedTagChip key={tag.id} label={tag.name} onRemove={() => handleTagRemove(tag.id)} />
               ))}
               <span
-                onClick={() => { setTagsEnabled(true); setShowTagDropdown(v => !v); }}
+                onClick={() => setShowTagDropdown(v => !v)}
                 style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px 4px' }}
               >
                 + Add tag
@@ -1248,12 +1146,10 @@ export default function ExtractionPage() {
               onClick={() => setShowNotesDrawer(true)}
               style={{
                 fontSize: 13, color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-active)',
-                cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200,
+                cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
-              {notesValue
-                ? notesValue.slice(0, 40) + (notesValue.length > 40 ? '…' : '')
-                : 'Add note'}
+              {notesValue && notesValue.trim() ? 'Edit notes' : 'Add note'}
             </span>
 
             {/* Scenario link + delete */}
@@ -1313,7 +1209,7 @@ export default function ExtractionPage() {
         )}
 
         {/* Org CTA — authenticated user, no org, not staff */}
-        {isAuthenticated && !isClientAdmin && resolvedUser?.role !== 'warpaths_staff' && (
+        {isAuthenticated && !isClientAdmin && resolvedUser?.scope !== 'bubble' && (
           <div style={{
             background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)',
             borderLeft: '3px solid var(--accent-amber)', borderRadius: 3,
@@ -1367,18 +1263,11 @@ export default function ExtractionPage() {
           {activeTab === 'seeds' && isAuthenticated && <TabInjectSeeds re={reportExtraction} />}
           {activeTab === 'notes' && isClientAdmin && (
             <TabAdminNotes
+              ce={clientExtraction}
               value={notesValue}
               onChange={e => setNotesValue(e.target.value)}
               onBlur={handleNotesBlur}
               savedVisible={notesSavedVisible}
-            />
-          )}
-          {activeTab === 'details' && isAuthenticated && (
-            <TabExtractionDetails
-              re={reportExtraction}
-              reportsUsed={reportsUsed}
-              effectiveLimit={effectiveLimit}
-              isStaff={isStaff}
             />
           )}
         </div>
@@ -1436,6 +1325,11 @@ export default function ExtractionPage() {
                 + New
               </Button>
             </div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: 8 }}>
+              {effectiveLimit != null
+                ? `${reportsUsed}/${effectiveLimit} used this period`
+                : `${reportsUsed} used this period`}
+            </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               <FilterChip label="All" active={activeTagFilter === null} onClick={() => handleTagFilter(null)} />
               {filterTags.map(tag => (
@@ -1484,6 +1378,7 @@ export default function ExtractionPage() {
       <Drawer open={showNotesDrawer} onClose={() => setShowNotesDrawer(false)} title="Notes" width={480}>
         <div style={{ padding: '4px 0' }}>
           <TabAdminNotes
+            ce={clientExtraction}
             value={notesValue}
             onChange={e => setNotesValue(e.target.value)}
             onBlur={handleNotesBlur}

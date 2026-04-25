@@ -210,3 +210,69 @@ None — the per-row fields `api-surface.md` lists all exist in the live respons
 
 - Registry notes a `tag_id` query param; confirmed working (tested with a random UUID, returned `{ items: [] }` as expected).
 - No cursor/pagination envelope observed — this endpoint returns all matching rows at once.
+
+---
+
+## 3. Scenario — `actors[]` item shape
+
+The `current_posture` field on a Scenario actor is an **enum**, not a free-text string.
+Valid values: `dormant | observing | active | escalating | de_escalating | engaged`.
+
+| Field | Type |
+|---|---|
+| `name` | string |
+| `role` | string |
+| `goal_items` | `{ goal: string, priority: number }[]` |
+| `behavior` | string |
+| `history` | string |
+| `constraints` | string |
+| `current_posture` | enum — see values above |
+| `is_visible_to_player` | boolean |
+| `relationships_overview` | string |
+
+### Catalogue drift
+
+`warpaths-api/docs/catalogue/02_scenario.md` documents `current_posture` as type `string`.
+This is incorrect — the API enforces the enum listed above and returns a 422 if an
+out-of-range value is submitted. The catalogue entry should be updated.
+
+### Extraction vs. Scenario distinction
+
+`actor_suggestions[].current_posture` (on the ReportExtraction) is a **free-text narrative**
+string (e.g. "Leading efforts in promoting space governance"). It is NOT the same field as
+`Scenario.actors[].current_posture`. When seeding scenario actors from an extraction:
+- Default `current_posture` to `'observing'`
+- Surface the narrative string via MappingCallout so the author can pick the correct enum value
+
+---
+
+## 4. `GET /v1/scenarios` — list envelope
+
+Tested 2026-04-24. The live response is wrapped in an `items` envelope:
+
+```json
+{ "items": [ <Scenario>, <Scenario>, ... ] }
+```
+
+Empty result still returns the same shape: `{ "items": [] }`.
+
+Filter parameters tested and confirmed working:
+- `source_extraction_id=<uuid>` — returns length 0 or 1 (product rule: at most
+  one Scenario per extraction)
+
+### Catalogue drift (BACKLOG — needs API-side doc fix)
+
+`warpaths-api/docs/api/02_scenario.md` at the `GET /scenarios` entry documents
+**"Returns: Array of Scenario records"** — a bare array. The live response is
+actually `{ items: [...] }`. This is real drift, same class as the
+`current_posture` enum mislabeling above — both need API catalogue corrections.
+
+Frontend handles this by unwrapping inside `src/api/scenario.js`:
+
+```js
+export const listScenarios = (params) =>
+  client.get('/v1/scenarios', { params }).then(r => r.data?.items ?? []);
+```
+
+Consumers receive a plain array. Same pattern as `getClientExtractions` and
+`getClientTags` in `src/api/extraction.js`.

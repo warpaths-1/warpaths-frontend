@@ -27,7 +27,34 @@ export default function Header() {
 
   return (
     <header className={styles.header}>
-      <Link to="/" className={styles.wordmark}>WARPATHS</Link>
+      <Link to="/" className={styles.brand}>
+        <svg
+          className={styles.hexMark}
+          width="30"
+          height="29"
+          viewBox="0 0 50 48"
+          aria-hidden="true"
+        >
+          <polygon
+            points="25,1 1,12 1,36 25,47 49,36 49,12"
+            fill="var(--bg-secondary)"
+            stroke="var(--accent-red)"
+            strokeWidth="2"
+          />
+          <text
+            x="21"
+            y="38"
+            textAnchor="middle"
+            fontFamily="Black Ops One"
+            fontStyle="italic"
+            fontSize="36"
+            fill="var(--accent-red)"
+          >
+            W
+          </text>
+        </svg>
+        <span className={styles.wordmark}>WARPATHS</span>
+      </Link>
       <div className={styles.right} ref={ref}>
         {user ? (
           <>

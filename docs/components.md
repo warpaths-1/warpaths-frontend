@@ -120,10 +120,11 @@ Animation: fade + scale, 150ms. Closes on overlay click and Escape.
 ### Drawer
 `Drawer.jsx` + `Drawer.module.css`
 
-Props: `open`, `onClose`, `title`, `width` (default 480 | wide 640), `children`
+Props: `open`, `onClose`, `title`, `width` (default 480 | wide 640), `side` (`'left' | 'right'`, default `'right'`), `children`
 
-Slides in from right. Left border `--border-subtle`. Close button top right.
-Animation: translate from right, 200ms.
+Slides in from the specified side. Border on inner edge uses `--border-subtle`
+(left border when `side="right"`, right border when `side="left"`).
+Close button top right. Animation: translate from the chosen side, 200ms.
 
 ---
 

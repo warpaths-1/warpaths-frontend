@@ -1,0 +1,39 @@
+.callout {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: var(--space-5);
+}
+
+.header {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.section {
+  margin-bottom: var(--space-3);
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.body {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  line-height: 1.6;
+}

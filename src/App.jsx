@@ -8,6 +8,7 @@ import ExtractionPage from './pages/ExtractionPage';
 import OrgManagementPage from './pages/OrgManagementPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AccountPage from './pages/AccountPage';
+import AuthoringPage from './pages/AuthoringPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
@@ -31,6 +32,15 @@ export default function App() {
           } />
           <Route path="/account" element={
             <ProtectedRoute><AccountPage /></ProtectedRoute>
+          } />
+          <Route path="/author" element={
+            <ProtectedRoute><AuthoringPage /></ProtectedRoute>
+          } />
+          <Route path="/author/new" element={
+            <ProtectedRoute><AuthoringPage /></ProtectedRoute>
+          } />
+          <Route path="/author/:scenario_id" element={
+            <ProtectedRoute><AuthoringPage /></ProtectedRoute>
           } />
           <Route path="/" element={<Navigate to="/leaderboard" replace />} />
         </Routes>

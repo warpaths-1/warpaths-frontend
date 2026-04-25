@@ -8,13 +8,15 @@ export default function PageShell({
   maxWidth = 'lg',
   children,
 }) {
+  const fullBleed = !sidebar && maxWidth === 'full';
+  const fill = sidebar || fullBleed;
   return (
     <div className={styles.shell}>
       <Header />
       <div className={styles.body}>
         {sidebar && <Sidebar items={sidebarItems} />}
-        <div className={[styles.content, sidebar ? styles.contentFill : styles.contentCentered].join(' ')}>
-          {sidebar ? children : (
+        <div className={[styles.content, fill ? styles.contentFill : styles.contentCentered].join(' ')}>
+          {fill ? children : (
             <div className={[styles.inner, maxWidth === 'md' ? styles.maxMd : styles.maxLg].join(' ')}>
               {children}
             </div>
