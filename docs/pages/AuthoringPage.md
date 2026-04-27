@@ -610,6 +610,23 @@ Scenario, render a "Create config" form. If one exists in `draft`, load it.
 - `requires_validation` — Toggle (staff-only field; ClientAdmin does not
   see this, defaults to `false` server-side for org configs)
 
+**Immutable fields after Create:** `game_type` and `turn_count` are
+NOT in `PatchScenarioConfigRequest` (verified probe 2026-04-26). The
+API permits these fields only on Create. On return-visit (after a
+config exists), the form must render both fields disabled with helper
+text `"Fixed at create"`. Disabled state values come from the loaded
+config record, not from create-time defaults.
+
+This is intentional API design — changing `game_type` or `turn_count`
+mid-config would invalidate downstream content (Turn1Template,
+TurnQuestions per turn, evaluation logic). To change either, the user
+must clone the config (Phase 2) or recreate from scratch.
+
+Other ScenarioConfig fields (`name`, `description`,
+`analytical_framework_id`, `requires_validation`,
+`max_exchanges_per_turn`, `minimum_runs_for_insight`,
+`released_through_turn`) are patchable freely.
+
 **Framework picker:**
 Section divider, then `"ANALYTICAL FRAMEWORK"` section label.
 
