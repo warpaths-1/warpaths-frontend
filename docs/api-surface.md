@@ -212,6 +212,61 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 
 ---
 
+## scenarioConfig.js
+
+### GET `/v1/scenarios/:scenario_id/configs` — `getConfigsForScenario(scenarioId)`
+- **Live response shape:** `{ items: ScenarioConfig[] }` (verified 2026-04-26). Unwrapped inside the function.
+- **Used by:** `AuthoringPage` (Step 3 — `['configs', scenarioId]`) to find an existing `status === 'draft'` config to resume.
+- **Response fields used per row:** `id`, `status`, `created_at`, plus the full record (loaded into the form via `fromConfig` — see Step 3 mapping below).
+
+### POST `/v1/scenarios/:scenario_id/configs` — `createConfig(scenarioId, body)`
+- **Body (CreateScenarioConfigRequest, verified against openapi.json 2026-04-26):**
+  - Required: `name`, `turn_count` (3–10).
+  - Optional: `source_extraction_id`, `analytical_framework_id`, `description`, `game_type` (enum: `sage_individual` | `org_facilitated`), `requires_validation` (default `true`), `max_exchanges_per_turn`, `minimum_runs_for_insight` (default `15`), `released_through_turn` (default `1`).
+  - **Nested path is non-negotiable** — flat `POST /v1/scenario-configs` returns `404` (probed 2026-04-26).
+- **Used by:** `AuthoringPage` (Step 3 first save).
+- **Response fields used:** full `ScenarioConfig` — seeded into `['config', id]` and cache `['configs', scenarioId]` invalidated.
+- **Silent-drop check:** body uses `analytical_framework_id` (not `framework_id` / `analyticalFrameworkId`) so the FK is preserved across the create.
+
+### GET `/v1/scenario-configs/:configId` — `getConfig(configId)`
+- (unused by built pages — registered on the API surface for future direct loads.)
+
+### PATCH `/v1/scenario-configs/:configId` — `updateConfig(configId, body)`
+- **Body (PatchScenarioConfigRequest, verified 2026-04-26):** any subset of `name`, `description`, `analytical_framework_id`, `requires_validation`, `max_exchanges_per_turn`, `minimum_runs_for_insight`, `released_through_turn`.
+- **Does NOT accept** `game_type` or `turn_count` — those are immutable after create. Step 3 renders them disabled on return visits with the helper hint `"Fixed at create"`.
+- **Used by:** `AuthoringPage` (Step 3 subsequent saves — diff over the allowed fields).
+- **Response fields used:** full updated `ScenarioConfig` — written into `['config', configId]`; `['configs', scenarioId]` invalidated.
+- **Error handling:** 409 → toast `"Framework is in use on validated configs. Reverting selection."` and revert local `analytical_framework_id` to last-saved. (Until the proactive `GET /v1/scenario-configs?analytical_framework_id=…&status=validated` filter exists — currently 404 — this is the only check for framework-in-use conflicts.)
+
+### POST `/v1/scenario-configs/:configId/submit-for-review` — `submitConfigForReview(configId)`
+- (unused — wired in Session 8.)
+
+### POST `/v1/scenario-configs/:configId/approve` — `approveConfig(configId)`
+- (unused — wired in Session 8, staff-only.)
+
+### POST `/v1/scenario-configs/:configId/reject` — `rejectConfig(configId)`
+- (unused — wired in Session 8, staff-only.)
+
+---
+
+## framework.js
+
+### GET `/v1/analytical-frameworks` — `listFrameworks()`
+- **Live response shape:** `{ items: AnalyticalFramework[] }` (verified 2026-04-25). Unwrapped inside the function.
+- **Server auto-scopes** to platform (`client_id === null`) + caller's `client_id` — no `client_id` filter passed from the frontend.
+- **Used by:** `AuthoringPage` (Step 3 framework picker — `['frameworks']`). Drives both the selected-framework display card and the `FrameworkPickerDrawer` row list.
+- **Response fields used per row:** `id`, `client_id` (drives drawer grouping: platform / org / other), `tier` (rendered as a pill, server-driven enum), `name`, `framework_description`, `created_at` (used to pick the lowest-`created_at` Realism platform framework as the default).
+
+### GET `/v1/analytical-frameworks/:id` — `getFramework(id)`
+- (unused by built pages — registered for future detail/clone flows.)
+- **Response shape:** UNVERIFIED — assumed to match the list-item shape. Re-probe and update `docs/response-shapes.md` once first wired.
+
+### POST `/v1/analytical-frameworks/:id/clone` — `cloneFramework(id, name)`
+- **Body:** `{ name }`.
+- (unused this session — Phase 2. The Step 3 `FrameworkPickerDrawer` shows a disabled `"+ Create framework"` ghost button + amber "Coming soon" chip in its place. The clone flow on the framework-in-use warning is also deferred since the proactive in-use check is currently disabled — see PATCH 409 fallback above.)
+
+---
+
 ## user.js
 
 | Method | Path | Function | Used by |
@@ -228,4 +283,4 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 |---|---|
 | `LoginPage` | `POST /auth/login` |
 | `ExtractionPage` | `POST /v1/report-extractions/ingest`, `GET /v1/report-extractions/:id`, `GET /v1/clients/:clientId`, `GET /v1/clients/:clientId/extractions`, `GET /v1/clients/:clientId/extractions/:id`, `PATCH /v1/clients/:clientId/extractions/:id`, `DELETE /v1/clients/:clientId/extractions/:id`, `POST /v1/clients/:clientId/extractions/:id/tags`, `DELETE /v1/clients/:clientId/extractions/:id/tags/:tagId`, `GET /v1/clients/:clientId/tags`, `POST /v1/clients/:clientId/tags` |
-| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish` |
+| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks` |

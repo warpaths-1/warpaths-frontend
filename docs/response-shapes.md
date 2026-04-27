@@ -307,3 +307,112 @@ export const listScenarios = (params) =>
 
 Consumers receive a plain array. Same pattern as `getClientExtractions` and
 `getClientTags` in `src/api/extraction.js`.
+
+---
+
+## 5. `GET /v1/scenarios/:id/configs` — list envelope
+
+_Last probed: 2026-04-26._
+
+Wrapped in an `items` envelope, same as `/v1/scenarios`:
+
+```json
+{ "items": [ <ScenarioConfig>, ... ] }
+```
+
+Empty result returns `{ "items": [] }`. Frontend unwraps inside
+`getConfigsForScenario` so consumers receive a plain array.
+
+---
+
+## 6. `ScenarioConfig` record shape
+
+_Last probed: 2026-04-24 (B4)._
+
+Per-record fields observed on `ScenarioConfig`:
+
+| Field | Type |
+|---|---|
+| `id` | string (UUID) |
+| `scenario_id` | string (UUID) |
+| `source_extraction_id` | string (UUID) \| null |
+| `analytical_framework_id` | string (UUID) \| null |
+| `name` | string |
+| `description` | string \| null |
+| `status` | string (e.g. `"draft"`, `"validated"`, `"active"`) |
+| `game_type` | string enum: `sage_individual` \| `org_facilitated` |
+| `turn_count` | number (3–10) |
+| `requires_validation` | boolean |
+| `max_exchanges_per_turn` | number \| null |
+| `minimum_runs_for_insight` | number |
+| `released_through_turn` | number |
+| `created_at` | string (ISO8601) |
+| `updated_at` | string (ISO8601) |
+
+### Frontend usage (Step 3)
+
+Consumed today: `id`, `status`, `name`, `description`, `analytical_framework_id`,
+`game_type`, `turn_count`, `max_exchanges_per_turn`, `minimum_runs_for_insight`,
+`requires_validation`, `created_at`, `source_extraction_id`.
+
+### Notes
+
+- Does **NOT** include `circle_space_id` — the stoplight YAML referenced this field but the live response does not return it.
+- Does **NOT** inline child objects (advisors, dimension_definitions, evaluation_criteria, tension_indicator, content_seeds, turn_questions, turn1_template, player_perspective). Each child has its own sub-endpoint under `/v1/scenario-configs/:id/...` — fetch separately.
+- `PATCH /v1/scenario-configs/:id` accepts only a subset (`PatchScenarioConfigRequest`, verified 2026-04-26 against openapi.json): `name`, `description`, `analytical_framework_id`, `requires_validation`, `max_exchanges_per_turn`, `minimum_runs_for_insight`, `released_through_turn`. Notably **does not accept** `game_type` or `turn_count` — those are immutable after create. Step 3 disables those inputs on return visits with the helper hint `"Fixed at create"`.
+
+### Endpoint status (probed 2026-04-26)
+
+- `POST /v1/scenarios/:id/configs` — exists; nested path is the only create surface.
+- `POST /v1/scenario-configs` — `404 Not Found`. Flat create not built.
+- `GET /v1/scenario-configs?analytical_framework_id=…&status=validated` — `404 Not Found`. Flat list with filters not built. Step 3's framework-in-use check is therefore deferred to a 409 fallback at PATCH time. Re-probe and switch to the proactive check once the endpoint ships.
+
+---
+
+## 7. `GET /v1/analytical-frameworks` — list envelope and item shape
+
+_Last probed: 2026-04-25._
+
+Wrapped in an `items` envelope:
+
+```json
+{ "items": [ <AnalyticalFramework>, ... ] }
+```
+
+The server **auto-scopes** by caller's JWT — a ClientAdmin token returned only
+records with `client_id === null` (platform frameworks) plus any owned by the
+caller's `client_id`. The frontend does **not** pass any `client_id` filter.
+
+### Per-item shape
+
+| Field | Type |
+|---|---|
+| `id` | string (UUID) |
+| `client_id` | string (UUID) \| null — `null` means a platform-owned framework |
+| `tier` | string — server-driven enum (Stoplight YAML lists nine values; only `"realism"` observed in dev DB as of 2026-04-25) |
+| `name` | string |
+| `framework_description` | string |
+| `framework_tenets` | string (long-form, multi-paragraph) |
+| `created_at` | string (ISO8601) |
+| `updated_at` | string (ISO8601) |
+
+### Frontend usage (Step 3)
+
+Consumed today: `id`, `client_id` (drives drawer grouping), `tier` (rendered as a pill, verbatim — no client-side enum check), `name`, `framework_description`, `created_at` (default-selection ordering: lowest-`created_at` Realism platform framework).
+
+### Registry drift (vs Stoplight)
+
+Stoplight references `is_active`, `created_by_user_id`, and `notes` on this
+record. None are returned by the live endpoint — do not consume them on the
+frontend.
+
+### Default selection rule (Step 3)
+
+1. Filter to `client_id === null` AND `tier === 'realism'`. Pick the lowest `created_at`.
+2. If none, fall back to lowest-`created_at` platform framework of any tier.
+3. If no platform frameworks exist, render `"No frameworks available. Contact staff."`
+
+Test data 2026-04-25: dev DB has exactly one framework, `"Smoke Test Realism"`
+(tier `realism`, platform-owned). The auto-selected hint `"Using: Realism
+(platform default)"` references the tier name, not the framework name, so the
+hint stays generic.

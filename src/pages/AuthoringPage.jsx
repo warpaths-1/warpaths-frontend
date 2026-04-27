@@ -291,6 +291,10 @@ function AuthoringEditor({
   const [savedAt, setSavedAt] = useState(null);
   const [saving, setSaving] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  // Step 3 advance gate — child reports its validity (name + framework
+  // present) via onValidityChange. Derived state from a cache key isn't
+  // viable here because name/description live in the form until save.
+  const [step3Valid, setStep3Valid] = useState(false);
 
   const isValidation = currentStep === 'validation';
   const stepForIndicator = isValidation ? STEPS.length : currentStep;
@@ -301,11 +305,15 @@ function AuthoringEditor({
   const actorCount = scenario?.actors?.length ?? 0;
   const isArchived = scenario?.status === 'archived';
   const saveNextDisabled =
-    isArchived || (currentStep === 2 && actorCount < 3);
+    isArchived
+    || (currentStep === 2 && actorCount < 3)
+    || (currentStep === 3 && !step3Valid);
   const saveNextTooltip = isArchived
     ? 'Scenario is archived'
-    : saveNextDisabled
+    : currentStep === 2 && actorCount < 3
     ? 'Add at least 3 actors'
+    : currentStep === 3 && !step3Valid
+    ? 'Name the config and pick a framework'
     : undefined;
 
   const handleBack = () => {
@@ -407,6 +415,16 @@ function AuthoringEditor({
         scenarioId={scenarioId}
         onNavigateToStep1={() => onStepChange(1)}
         readOnly={isArchived}
+      />
+    );
+  } else if (currentStep === 3) {
+    stepContent = (
+      <Step3ConfigSetup
+        saveRef={stepSaveRef}
+        scenario={scenario}
+        scenarioId={scenarioId}
+        readOnly={isArchived}
+        onValidityChange={setStep3Valid}
       />
     );
   } else {
