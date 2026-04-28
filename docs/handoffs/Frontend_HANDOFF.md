@@ -1,5 +1,5 @@
 # WarPaths Platform — Frontend Design Handoff
-## Updated April 2026 — Reflects React/CC build, LoginPage completion, auth fixes
+## Updated April 2026 — Reflects React/CC build, LoginPage + ExtractionPage + AuthoringPage Sessions 1–4 completion, auth fixes, API audit findings
 
 ---
 
@@ -253,6 +253,7 @@ This was a deliberate design decision made April 2026.
 | Login | LoginPage.jsx | `/login` | None | **BUILT** |
 | Signup | SignupPage.jsx | `/signup` | None | Scaffold only |
 | Extraction | ExtractionPage.jsx | `/extract`, `/extract/:id` | Partial | **BUILT** |
+| Authoring | AuthoringPage.jsx | `/author`, `/author/new`, `/author/:id` | ClientAdmin | **PARTIAL** — Sessions 1–4 done (Steps 1–3), Sessions 5a–8 pending audit revision |
 | Org Management | OrgManagementPage.jsx | `/org` | ClientAdmin | Scaffold only |
 | Game | GamePage.jsx | `/game/:id` | User | Scaffold only |
 | Leaderboard | LeaderboardPage.jsx | `/leaderboard` | None | Scaffold only |
@@ -530,6 +531,115 @@ See `docs/pages/ExtractionPage.md` for the complete spec.
 
 ---
 
+---
+
+## AuthoringPage — PARTIAL (Sessions 1–4)
+
+**Route:** `/author`, `/author/new`, `/author/:scenario_id` — ClientAdmin auth required (also accessible by staff via bubble token)
+
+**Purpose:** Author and manage scenarios + scenario configs. The gate between extraction and gameplay — a ClientAdmin shapes raw extracted scenarios into game-ready configs (named "Operation X — Realism baseline" etc.).
+
+**Status:** Phase 1 partial. Sessions 1–4 committed (`/author` landing, Steps 1–3 of the stepped flow). Sessions 5a–8 pending — each requires an audit-driven prompt revision before build (see `docs/build-plans/AuthoringPage-BuildOrder.md`).
+
+### Layout
+
+Single-column, max-width 900px, centered. PageShell with `sidebar={false}`. No master-detail.
+
+### Three states
+
+1. **Landing** — `/author` shows three tiles: Browse extractions, Start blank, Clone existing (Phase 2 disabled). Plus drawer-based extraction picker with tag filter and search.
+2. **Stepped flow** — `/author/new` or `/author/:id` with StepIndicator. 11 steps. Per-step save advances forward.
+3. **Tabbed editor** — same `/author/:id` URL with `?mode=tabs` (or post-validated). All steps available as tabs simultaneously. Pending Session 8.
+
+### What's built (Sessions 1–4)
+
+**Step 1 — Framing.** Scenario record CRUD. Form fields per `02_scenario.md`. Pre-fill from extraction. Implicit publish on advance to Step 3.
+
+**Step 2 — Actors.** ≥3 actors required. Each actor in a Drawer-based editor with three-input goals (`label`, `description`, `priority`). Actor pre-fill from extraction's `actor_suggestion[]`.
+
+**Step 3 — Config setup.** ScenarioConfig record CRUD via nested path `POST /v1/scenarios/:scenario_id/configs`. AnalyticalFramework picker with three conditional groupings. Auto-selected platform Realism default. Immutable `game_type` and `turn_count` after Create (rendered disabled with "Fixed at create" hint on return-visit).
+
+**Steps 4–11.** Placeholders. Built in Sessions 5a–8.
+
+### Mid-session fixes already landed
+
+| Session | Purpose |
+|---|---|
+| 1.5 | Drawer slides from left; staff-only AI Suggestion tile |
+| 2.5 | Staff-gate `tier_minimum` + `availability_window_days` |
+| 3.5 | Actor `current_posture` enum fix |
+| 3.6 | UX refinements: collapsible ActorCards, resume logic |
+| 3.7 | Cancel button + Modal; deferred-POST blank scenario; multi-select tag filter |
+| 3.8 | Drawer date source fix (`extracted_at` → `created_at`) |
+| 3.9 | Actor goals data-loss fix (`goal_items` → `goals` three-input shape) |
+| 3.10 | Archive-aware resume + read-only enforcement on archived scenarios |
+
+### Important behaviors
+
+**Resume logic.** `listScenarios` filters out archived scenarios client-side. The product rule "one Scenario per ReportExtraction per client" means one *active* Scenario — archived doesn't count. After a user archives a draft, clicking the same extraction creates a fresh scenario.
+
+**Archived state.** Scenarios with `status === 'archived'` render with a banner ("This scenario is archived. Unarchive to edit."), all form fields are read-only, all save buttons are disabled. Unarchive button is disabled with "Coming soon" chip — the `POST /v1/scenarios/:id/unarchive` endpoint is not yet implemented.
+
+**Framework picker.** `GET /v1/analytical-frameworks` envelope is `{items: [...]}`. Server auto-scopes by caller. Three groupings render conditionally: Platform frameworks, Your org's frameworks, Other organizations — only the groupings with matching items render. As of April 2026, only one platform framework exists in dev DB ("Smoke Test Realism" — should be renamed pre-demo).
+
+**Framework-in-use 409 fallback.** The catalogue's proactive check `GET /v1/scenario-configs?analytical_framework_id=` returns 404 (endpoint not implemented). Frontend instead relies on 409-on-PATCH-time when assigning a framework that's in use.
+
+**Silent-drop awareness.** All POST/PATCH bodies use field names from OpenAPI's request schemas (`CreateScenarioConfigRequest`, etc.). Wrong field names would return 201 with data silently dropped — pydantic `extra="ignore"` is the platform default.
+
+### Key API paths
+
+```
+GET  /v1/scenarios?source_extraction_id=:id  # resume lookup; client-side filters archived
+GET  /v1/scenarios/:id                       # scenario record + inlined actors
+POST /v1/scenarios                           # create blank or from extraction
+PATCH /v1/scenarios/:id                       # update fields
+POST /v1/scenarios/:id/archive               # archive (the only cleanup; no DELETE)
+
+GET  /v1/scenarios/:id/configs               # list configs (envelope: {items})
+POST /v1/scenarios/:scenario_id/configs      # create config (nested path; flat returns 404)
+GET  /v1/scenario-configs/:id                # config record
+PATCH /v1/scenario-configs/:id                # update config (omits game_type, turn_count)
+POST /v1/scenario-configs/:id/submit-for-review  # transition to in_review (no server-side readiness gate)
+POST /v1/scenario-configs/:id/approve        # transition to validated
+POST /v1/scenario-configs/:id/reject         # back to draft
+
+GET  /v1/analytical-frameworks               # framework list (envelope: {items}; server auto-scopes)
+GET  /v1/analytical-frameworks/:id           # single framework
+POST /v1/analytical-frameworks/:id/clone     # staff-only Phase 2
+
+# DELETE endpoints documented but unimplemented:
+# DELETE /v1/scenarios/:id (returns 405 — use archive instead)
+# DELETE /v1/analytical-frameworks/:id (not in OpenAPI)
+
+# AI generation endpoints documented but unimplemented:
+# POST /v1/scenario-configs/:id/turn-questions/generate (Phase 2)
+# POST /v1/scenario-configs/:id/turn1-template/generate (Phase 2)
+```
+
+### Pending sessions
+
+| Session | Step(s) | Audit revision scope |
+|---|---|---|
+| 5a | Step 4 Tension | Standard |
+| 5b | Step 5 Dimensions | **Significant** — original "exactly 5 with weights summing to 1.0" invalidated; real schema has no weight field on DimensionDefinition |
+| 5c | Step 6 Scoring | Standard + add `meta.weight_sum` envelope handling |
+| 5d | Step 7 Perspective | Standard |
+| 6 | Steps 8–9 (Advisors + TurnQuestions) | Standard; no AI generation in Phase 1 (endpoints don't exist) |
+| 7 | Step 10 Turn1Template | **Significant** — direct POST instead of /generate; content_items write-once until API ships PATCH support |
+| 8 | Step 11 Review + Tabbed editor | **Significant** — readiness gate is client-side only; corrected requirements list; archive-only (no DELETE); verify config lock enforcement |
+
+See `docs/build-plans/AuthoringPage-BuildOrder.md` for full detail.
+
+### Key documentation
+
+- `docs/pages/AuthoringPage.md` — page spec (1300+ lines, includes API Behavior Notes)
+- `docs/build-plans/AuthoringPage-BuildOrder.md` — session sequence + audit revision notes
+- `BACKLOG.md` — deferred items
+- `docs/response-shapes.md` — verified live response shapes with `Last probed:` stamps
+- `~/dev/api-audit/` — historical audit reference (April 2026)
+
+---
+
 ## Page 4 — Org Game Management Page
 
 ### Who sees it
@@ -697,3 +807,8 @@ Invite Link (email)
 | Public leaderboard profile | Not designed | Modal or lightweight page |
 | AI prompt quality iteration | Deferred | Step 7 after game interface complete |
 | `POST /auth/set-password` auth gate | Known gap | Currently open endpoint — add auth before production |
+| `POST /v1/scenarios/:id/unarchive` | Frontend ready, endpoint missing | Banner has disabled Unarchive button with "Coming soon" chip; awaits API implementation |
+| `DELETE /v1/scenarios/:id` | Returns 405 | Use Archive only in Phase 1; permanent delete UI deferred to Phase 2 archive list view |
+| AI generation endpoints | Documented but unimplemented | TurnQuestion + Turn1Template generate endpoints don't exist in OpenAPI; Phase 2 |
+| Multi-client per-extraction Scenario UX | Pending `authored_by_client_id` storage | Currently filters archived but not by client |
+| Smoke Test Realism framework rename | Pre-demo cleanup | Dev DB has placeholder framework name; rename to "Realism" via API before any external demo |
