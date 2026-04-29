@@ -295,6 +295,10 @@ function AuthoringEditor({
   // present) via onValidityChange. Derived state from a cache key isn't
   // viable here because name/description live in the form until save.
   const [step3Valid, setStep3Valid] = useState(false);
+  // Step 4 advance gate — name + description + initial_value + all 7 scale
+  // labels are required by CreateTensionIndicatorRequest (verified
+  // 2026-04-28). Child reports validity via onValidityChange.
+  const [step4Valid, setStep4Valid] = useState(false);
 
   const isValidation = currentStep === 'validation';
   const stepForIndicator = isValidation ? STEPS.length : currentStep;
@@ -307,13 +311,16 @@ function AuthoringEditor({
   const saveNextDisabled =
     isArchived
     || (currentStep === 2 && actorCount < 3)
-    || (currentStep === 3 && !step3Valid);
+    || (currentStep === 3 && !step3Valid)
+    || (currentStep === 4 && !step4Valid);
   const saveNextTooltip = isArchived
     ? 'Scenario is archived'
     : currentStep === 2 && actorCount < 3
     ? 'Add at least 3 actors'
     : currentStep === 3 && !step3Valid
     ? 'Name the config and pick a framework'
+    : currentStep === 4 && !step4Valid
+    ? 'Complete required fields to continue'
     : undefined;
 
   const handleBack = () => {
@@ -425,6 +432,16 @@ function AuthoringEditor({
         scenarioId={scenarioId}
         readOnly={isArchived}
         onValidityChange={setStep3Valid}
+      />
+    );
+  } else if (currentStep === 4) {
+    stepContent = (
+      <Step4Tension
+        saveRef={stepSaveRef}
+        scenario={scenario}
+        scenarioId={scenarioId}
+        readOnly={isArchived}
+        onValidityChange={setStep4Valid}
       />
     );
   } else {

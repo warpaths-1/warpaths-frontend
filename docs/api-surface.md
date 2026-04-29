@@ -241,6 +241,32 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 ### POST `/v1/scenario-configs/:configId/submit-for-review` — `submitConfigForReview(configId)`
 - (unused — wired in Session 8.)
 
+---
+
+## scenarioChildren.js
+
+Per-config sub-object API functions. One section per child object.
+
+### GET `/v1/scenario-configs/:config_id/tension-indicator` — `getTensionIndicator(configId)`
+- **Live response shape:** Single TensionIndicator record. Stamped in `docs/response-shapes.md` (see §8). Returns 404 if no record exists yet — Step 4 catches and treats as "no record".
+- **Used by:** `AuthoringPage` (Step 4 — `['tension', configId]`).
+- **Response fields used:** full record loaded into the form via `fromTension`.
+
+### POST `/v1/scenario-configs/:config_id/tension-indicator` — `createTensionIndicator(configId, body)`
+- **Body (CreateTensionIndicatorRequest, verified against openapi.json 2026-04-28):**
+  - Required: `name`, `description`, `initial_value` (integer 1–7), `scale_1_label` … `scale_7_label`.
+  - Optional: `image_url` (nullable string).
+  - **Constraint:** Returns `409 Conflict` if a TensionIndicator already exists for this config — UI uses PATCH after first create.
+- **Used by:** `AuthoringPage` (Step 4 first save).
+- **Response fields used:** full TensionIndicator record — seeded into `['tension', configId]` cache.
+- **Silent-drop check:** body uses `description` (not `definition`) and `initial_value` (not `suggested_starting_level`). Pre-fill from `re.tension_suggestion` translates names explicitly — see Step 4 mapping.
+
+### PATCH `/v1/scenario-configs/:config_id/tension-indicator` — `updateTensionIndicator(configId, body)`
+- **Body (PatchTensionIndicatorRequest, verified 2026-04-28):** any subset of the Create fields. Fully permissive — no Create-only/immutable fields.
+- **Used by:** `AuthoringPage` (Step 4 subsequent saves — diff over all form fields).
+- **Response fields used:** full updated TensionIndicator record — written into `['tension', configId]` cache.
+- **Constraint:** Blocked if parent ScenarioConfig is `validated` or `retired` (per catalogue — not yet probed).
+
 ### POST `/v1/scenario-configs/:configId/approve` — `approveConfig(configId)`
 - (unused — wired in Session 8, staff-only.)
 
@@ -283,4 +309,4 @@ All functions exist but `GamePage` is a stub — none are wired to a page yet.
 |---|---|
 | `LoginPage` | `POST /auth/login` |
 | `ExtractionPage` | `POST /v1/report-extractions/ingest`, `GET /v1/report-extractions/:id`, `GET /v1/clients/:clientId`, `GET /v1/clients/:clientId/extractions`, `GET /v1/clients/:clientId/extractions/:id`, `PATCH /v1/clients/:clientId/extractions/:id`, `DELETE /v1/clients/:clientId/extractions/:id`, `POST /v1/clients/:clientId/extractions/:id/tags`, `DELETE /v1/clients/:clientId/extractions/:id/tags/:tagId`, `GET /v1/clients/:clientId/tags`, `POST /v1/clients/:clientId/tags` |
-| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks` |
+| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks`, `GET /v1/scenario-configs/:configId/tension-indicator`, `POST /v1/scenario-configs/:configId/tension-indicator`, `PATCH /v1/scenario-configs/:configId/tension-indicator` |

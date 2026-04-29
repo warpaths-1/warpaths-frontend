@@ -416,3 +416,50 @@ Test data 2026-04-25: dev DB has exactly one framework, `"Smoke Test Realism"`
 (tier `realism`, platform-owned). The auto-selected hint `"Using: Realism
 (platform default)"` references the tier name, not the framework name, so the
 hint stays generic.
+
+---
+
+## 8. `TensionIndicator` record shape
+
+_Last probed: 2026-04-28._
+
+`POST /v1/scenario-configs/:config_id/tension-indicator` returns 201 with the
+full record below; `GET` and `PATCH` return the same shape. Singular sub-
+resource — one TensionIndicator per ScenarioConfig.
+
+| Field | Type | Nullable |
+|---|---|---|
+| `id` | string (UUID) | no |
+| `scenario_config_id` | string (UUID) | no |
+| `name` | string | no |
+| `description` | string | no |
+| `initial_value` | integer (1–7) | no |
+| `image_url` | string \| null | **yes** (null observed when not provided) |
+| `scale_1_label` | string | no |
+| `scale_2_label` | string | no |
+| `scale_3_label` | string | no |
+| `scale_4_label` | string | no |
+| `scale_5_label` | string | no |
+| `scale_6_label` | string | no |
+| `scale_7_label` | string | no |
+| `created_at` | string (ISO8601) | no |
+| `updated_at` | string (ISO8601) | no |
+
+### Frontend usage (Step 4)
+
+Consumed today: full record loaded into the form via `fromTension`. UI fields
+mirror the request schema 1:1 — no consumer-only fields used (e.g., `id`,
+`scenario_config_id`, timestamps not surfaced).
+
+### Endpoint envelope
+
+Single record, no `{items}` envelope (singular sub-resource).
+
+### Notes
+
+- `image_url` is the only nullable field; an empty form input is sent as
+  `null` (not empty string).
+- `PatchTensionIndicatorRequest` is fully permissive (no Create-only fields)
+  — no "Fixed at create" disabled-on-re-edit treatment is needed in Step 4.
+- POST returns 409 if a TensionIndicator already exists for the config —
+  Step 4 distinguishes via the GET (404 → POST, 200 → PATCH).
