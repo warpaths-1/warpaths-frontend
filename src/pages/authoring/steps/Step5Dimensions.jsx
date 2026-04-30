@@ -342,29 +342,48 @@ export default function Step5Dimensions({
         }
         const nextErrors = { ...r.errors };
         if (nextErrors[key]) delete nextErrors[key];
+        // Status transitions: clear 'saved' on next edit (so the indicator
+        // doesn't linger), and clear 'error' once the user has resolved the
+        // last per-field error so the row no longer looks broken when its
+        // local state is again valid (Bug 3).
+        const noErrorsLeft = Object.keys(nextErrors).length === 0;
+        let nextStatus = r.status;
+        if (r.status === 'saved') nextStatus = 'idle';
+        else if (r.status === 'error' && noErrorsLeft) nextStatus = 'idle';
         return {
           ...r,
           fields: nextFields,
           keyManuallyEdited,
           errors: nextErrors,
-          status: r.status === 'saved' ? 'idle' : r.status,
+          status: nextStatus,
         };
       })
     );
   };
 
-  const saveRow = async (clientKey) => {
+  // `override` is an optional partial fields map that takes precedence over
+  // the closure-captured row state. Needed because Select's onChange fires a
+  // microtask before React flushes the setRows update, so a closure-only read
+  // would see stale fields. Input/Textarea blur events run after React has
+  // flushed and don't need an override (caller passes none).
+  const saveRow = async (clientKey, override = null) => {
     if (readOnly || !configId) return;
     const target = rows.find((r) => r.clientKey === clientKey);
     if (!target) return;
+    const effectiveFields = override
+      ? { ...target.fields, ...override }
+      : target.fields;
 
     if (target.id == null) {
-      // New row — POST only when all required fields are filled.
-      if (!isRowComplete(target.fields)) return;
+      // New row — POST only when all required fields are filled. Silent
+      // abort on incomplete state; errors aren't surfaced because new rows
+      // are still being filled out (showing red errors on every blur of a
+      // half-finished new row would be noise).
+      if (!isRowComplete(effectiveFields)) return;
       if (!framework) return;
 
       const orderIndex = rows.findIndex((r) => r.clientKey === clientKey);
-      const body = buildCreateBody(target.fields, framework, orderIndex);
+      const body = buildCreateBody(effectiveFields, framework, orderIndex);
 
       updateRow(clientKey, (r) => ({ ...r, status: 'saving', errors: {} }));
       try {
@@ -400,8 +419,27 @@ export default function Step5Dimensions({
     }
 
     // Existing row — PATCH dirty subset.
-    const diff = computePatchDiff(target.initial, target.fields);
+    const diff = computePatchDiff(target.initial, effectiveFields);
     if (Object.keys(diff).length === 0) return;
+
+    // Bug 4 gate — block PATCH when dirty changes would leave any required
+    // field blank. The PATCH schema accepts nullable strings, so without
+    // this gate the API silently writes empty values to required fields.
+    // Surface per-field errors so the user knows why the save was blocked.
+    if (!isRowComplete(effectiveFields)) {
+      const fieldErrors = {};
+      if (!effectiveFields.display_name?.trim()) fieldErrors.display_name = 'Required';
+      if (!effectiveFields.dimension_key?.trim()) fieldErrors.dimension_key = 'Required';
+      if (!effectiveFields.definition_prose?.trim()) fieldErrors.definition_prose = 'Required';
+      const lvl = parseInt(effectiveFields.initial_value, 10);
+      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 5) fieldErrors.initial_value = 'Required';
+      updateRow(clientKey, (r) => ({
+        ...r,
+        errors: { ...r.errors, ...fieldErrors },
+        status: 'error',
+      }));
+      return;
+    }
 
     updateRow(clientKey, (r) => ({ ...r, status: 'saving', errors: {} }));
     try {
@@ -654,7 +692,7 @@ export default function Step5Dimensions({
             isStaff={isStaff}
             readOnly={readOnly}
             onFieldChange={(k, v) => setRowField(row.clientKey, k, v)}
-            onCommit={() => saveRow(row.clientKey)}
+            onCommit={(override) => saveRow(row.clientKey, override)}
             onDelete={() => handleDeleteRow(row.clientKey)}
           />
         ))}
@@ -735,6 +773,8 @@ function DimensionRow({
   onDelete,
 }) {
   const { fields, errors, status } = row;
+  const rowSaving = status === 'saving';
+  const inputsDisabled = readOnly || rowSaving;
   const keyValid =
     !fields.dimension_key || KEY_REGEX.test(fields.dimension_key);
 
@@ -746,6 +786,8 @@ function DimensionRow({
         padding: 'var(--space-4)',
         marginBottom: 'var(--space-3)',
         background: 'var(--bg-secondary)',
+        opacity: rowSaving ? 0.55 : 1,
+        transition: 'opacity 150ms ease',
       }}
     >
       <div
@@ -769,7 +811,7 @@ function DimensionRow({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <SavedIndicator status={status} />
-          {!readOnly && (
+          {!readOnly && !rowSaving && (
             <button
               type="button"
               onClick={onDelete}
@@ -817,9 +859,9 @@ function DimensionRow({
           placeholder="e.g. Military"
           value={fields.display_name}
           onChange={(e) => onFieldChange('display_name', e.target.value)}
-          onBlur={onCommit}
+          onBlur={() => onCommit()}
           error={errors.display_name}
-          disabled={readOnly}
+          disabled={inputsDisabled}
         />
       </FieldRow>
 
@@ -834,9 +876,9 @@ function DimensionRow({
           placeholder="lower_snake_case"
           value={fields.dimension_key}
           onChange={(e) => onFieldChange('dimension_key', e.target.value)}
-          onBlur={onCommit}
+          onBlur={() => onCommit()}
           error={errors.dimension_key}
-          disabled={readOnly}
+          disabled={inputsDisabled}
           hint={
             !keyValid
               ? 'Should start with a letter; lowercase, digits, and underscores only.'
@@ -856,9 +898,9 @@ function DimensionRow({
           rows={3}
           value={fields.definition_prose}
           onChange={(e) => onFieldChange('definition_prose', e.target.value)}
-          onBlur={onCommit}
+          onBlur={() => onCommit()}
           error={errors.definition_prose}
-          disabled={readOnly}
+          disabled={inputsDisabled}
         />
       </FieldRow>
 
@@ -874,11 +916,13 @@ function DimensionRow({
           value={fields.initial_value}
           onChange={(v) => {
             onFieldChange('initial_value', v);
-            // Select has no onBlur — commit on change.
-            queueMicrotask(onCommit);
+            // Select has no onBlur. Pass the new value through as an explicit
+            // override so saveRow doesn't have to read closure-stale state
+            // before React's setRows update has flushed.
+            onCommit({ initial_value: v });
           }}
           error={errors.initial_value}
-          disabled={readOnly}
+          disabled={inputsDisabled}
         />
         <HelperHint>1 = failing · 5 = stable</HelperHint>
       </FieldRow>
@@ -890,9 +934,9 @@ function DimensionRow({
             rows={3}
             value={fields.update_guidance}
             onChange={(e) => onFieldChange('update_guidance', e.target.value)}
-            onBlur={onCommit}
+            onBlur={() => onCommit()}
             error={errors.update_guidance}
-            disabled={readOnly}
+            disabled={inputsDisabled}
             hint="Optional. Hidden from ClientAdmin authors."
           />
         </FieldRow>
