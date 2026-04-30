@@ -463,3 +463,63 @@ Single record, no `{items}` envelope (singular sub-resource).
   — no "Fixed at create" disabled-on-re-edit treatment is needed in Step 4.
 - POST returns 409 if a TensionIndicator already exists for the config —
   Step 4 distinguishes via the GET (404 → POST, 200 → PATCH).
+
+---
+
+## 9. `DimensionDefinition` — list envelope and record shape
+
+_Last probed: 2026-04-30._
+
+`GET /v1/scenario-configs/:config_id/dimension-definitions` returns a bare
+`{ items: [...] }` envelope — no `meta`, no `next_cursor`. Empty list still
+returns the same shape: `{ "items": [] }`. Frontend unwraps inside
+`listDimensions` so consumers receive a plain array.
+
+The flat single-record endpoint `GET /v1/dimension-definitions/:id` returns
+the same per-record shape. POST and PATCH return the full record.
+
+### Per-record shape
+
+| Field | Type | Nullable |
+|---|---|---|
+| `id` | string (UUID) | no |
+| `scenario_config_id` | string (UUID) | no |
+| `framework` | string enum: `pmesii` \| `pmesii_pt` \| `pestel` \| `custom` | no |
+| `dimension_key` | string | no |
+| `display_name` | string | no |
+| `definition_prose` | string | no |
+| `update_guidance` | string \| null | **yes** (null observed when not provided) |
+| `initial_value` | integer (1–5) | no |
+| `display_order` | integer | no |
+| `created_at` | string (ISO8601) | no |
+| `updated_at` | string (ISO8601) | no |
+
+### Frontend usage (Step 5)
+
+Consumed today: full record loaded into per-row form state via `fromRecord`
+and `rowFromRecord`. Sorted client-side by `display_order` ascending on
+initial load. Timestamps are not surfaced in the UI.
+
+### Endpoint paths
+
+Note the asymmetry — list/create are nested under config; get/update/delete
+are flat:
+
+- `GET /v1/scenario-configs/:config_id/dimension-definitions` — list
+- `POST /v1/scenario-configs/:config_id/dimension-definitions` — create
+- `GET /v1/dimension-definitions/:definition_id` — single (flat)
+- `PATCH /v1/dimension-definitions/:definition_id` — update (flat)
+- `DELETE /v1/dimension-definitions/:definition_id` — delete (flat)
+
+### Notes
+
+- `update_guidance` is the only nullable field. Empty form input is sent as
+  `null` (not empty string).
+- No bulk-create endpoint exists; the form layer iterates POST per row when
+  multiple new rows are saved.
+- The request schema does NOT accept `weight` (that's an EvaluationCriteria
+  field — Session 5c). Pydantic `extra="ignore"` would silently drop it; the
+  Step 5 form's silent-drop guard ensures bodies contain only the seven
+  documented fields.
+- `framework` is a categorical tag, not a constraint engine — `dimension_key`
+  values are not validated against the framework enum on the API.

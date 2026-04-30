@@ -444,6 +444,15 @@ function AuthoringEditor({
         onValidityChange={setStep4Valid}
       />
     );
+  } else if (currentStep === 5) {
+    stepContent = (
+      <Step5Dimensions
+        saveRef={stepSaveRef}
+        scenario={scenario}
+        scenarioId={scenarioId}
+        readOnly={isArchived}
+      />
+    );
   } else {
     const ActiveComponent = activeStep?.Component;
     stepContent = ActiveComponent ? <ActiveComponent /> : null;

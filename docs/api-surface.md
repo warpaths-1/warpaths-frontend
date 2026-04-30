@@ -273,6 +273,34 @@ Per-config sub-object API functions. One section per child object.
 ### POST `/v1/scenario-configs/:configId/reject` — `rejectConfig(configId)`
 - (unused — wired in Session 8, staff-only.)
 
+### GET `/v1/scenario-configs/:config_id/dimension-definitions` — `listDimensions(configId)`
+- **Live response shape:** `{ items: DimensionDefinition[] }` (verified 2026-04-30). Unwrapped inside the function — consumers receive a plain array.
+- **Used by:** `AuthoringPage` (Step 5 — `['dimensions', configId]`).
+- **Response fields used per row:** `id`, `scenario_config_id`, `framework`, `dimension_key`, `display_name`, `definition_prose`, `update_guidance`, `initial_value`, `display_order`. `created_at` / `updated_at` not surfaced. List sorted client-side by `display_order` ascending.
+
+### POST `/v1/scenario-configs/:config_id/dimension-definitions` — `createDimension(configId, body)`
+- **Body (CreateDimensionDefinitionRequest, verified against openapi.json 2026-04-30):**
+  - Required: `framework` (enum: `pmesii` | `pmesii_pt` | `pestel` | `custom`), `dimension_key` (string), `display_name` (string), `definition_prose` (string), `initial_value` (integer 1–5), `display_order` (integer).
+  - Optional: `update_guidance` (nullable string).
+- **Used by:** `AuthoringPage` (Step 5 per-row first save).
+- **Response fields used:** full record — appended to `['dimensions', configId]` cache.
+- **Silent-drop check:** body sends only the seven OpenAPI fields. Notably **NO** `weight` (does not exist on DimensionDefinition — that's EvaluationCriteria territory).
+
+### GET `/v1/dimension-definitions/:definition_id` — `getDimension(dimensionId)`
+- (unused by built pages — registered for future direct loads. Flat path; not nested under config.)
+
+### PATCH `/v1/dimension-definitions/:definition_id` — `updateDimension(dimensionId, body)`
+- **Body (PatchDimensionDefinitionRequest, verified 2026-04-30):** any subset of `framework`, `dimension_key`, `display_name`, `definition_prose`, `initial_value`, `display_order`, `update_guidance`. Fully permissive — no Create-only fields.
+- **Path is flat** (`/v1/dimension-definitions/:id`), not nested under config. Same asymmetry as `getDimension` / `deleteDimension`.
+- **Used by:** `AuthoringPage` (Step 5 per-row dirty-subset save and framework-change soft-lock loop).
+- **Response fields used:** full updated record — replaced by id in `['dimensions', configId]` cache.
+
+### DELETE `/v1/dimension-definitions/:definition_id` — `deleteDimension(dimensionId)`
+- **Path is flat.**
+- **Used by:** `AuthoringPage` (Step 5 trash icon — inline confirmation, not a modal).
+- **Response:** invalidates row in `['dimensions', configId]` cache by id filter.
+- **Constraint:** Blocked by API on validated configs (per catalogue line 79); surfaces as a 422 caught by the row's general error banner.
+
 ---
 
 ## framework.js
@@ -309,4 +337,4 @@ Per-config sub-object API functions. One section per child object.
 |---|---|
 | `LoginPage` | `POST /auth/login` |
 | `ExtractionPage` | `POST /v1/report-extractions/ingest`, `GET /v1/report-extractions/:id`, `GET /v1/clients/:clientId`, `GET /v1/clients/:clientId/extractions`, `GET /v1/clients/:clientId/extractions/:id`, `PATCH /v1/clients/:clientId/extractions/:id`, `DELETE /v1/clients/:clientId/extractions/:id`, `POST /v1/clients/:clientId/extractions/:id/tags`, `DELETE /v1/clients/:clientId/extractions/:id/tags/:tagId`, `GET /v1/clients/:clientId/tags`, `POST /v1/clients/:clientId/tags` |
-| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks`, `GET /v1/scenario-configs/:configId/tension-indicator`, `POST /v1/scenario-configs/:configId/tension-indicator`, `PATCH /v1/scenario-configs/:configId/tension-indicator` |
+| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks`, `GET /v1/scenario-configs/:configId/tension-indicator`, `POST /v1/scenario-configs/:configId/tension-indicator`, `PATCH /v1/scenario-configs/:configId/tension-indicator`, `GET /v1/scenario-configs/:configId/dimension-definitions`, `POST /v1/scenario-configs/:configId/dimension-definitions`, `PATCH /v1/dimension-definitions/:id`, `DELETE /v1/dimension-definitions/:id` |

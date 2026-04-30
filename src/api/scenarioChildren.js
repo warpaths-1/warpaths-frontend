@@ -26,3 +26,37 @@ export const updateTensionIndicator = (configId, body) =>
   client
     .patch(`/v1/scenario-configs/${configId}/tension-indicator`, body)
     .then((r) => r.data);
+
+// ── DimensionDefinition ─────────────────────────────────────────────────────
+// Many per ScenarioConfig (zero or more). Verified against openapi.json
+// 2026-04-30 — request schemas, endpoint paths, and list/single response
+// shapes confirmed live.
+//
+// Path asymmetry: list/create are nested under config; get/update/delete
+// operate on the flat resource path. Match the OpenAPI shape exactly. There
+// is no bulk-create endpoint — caller iterates client-side.
+
+export const listDimensions = (configId) =>
+  client
+    .get(`/v1/scenario-configs/${configId}/dimension-definitions`)
+    .then((r) => r.data?.items ?? []);
+
+export const createDimension = (configId, body) =>
+  client
+    .post(`/v1/scenario-configs/${configId}/dimension-definitions`, body)
+    .then((r) => r.data);
+
+export const getDimension = (dimensionId) =>
+  client
+    .get(`/v1/dimension-definitions/${dimensionId}`)
+    .then((r) => r.data);
+
+export const updateDimension = (dimensionId, body) =>
+  client
+    .patch(`/v1/dimension-definitions/${dimensionId}`, body)
+    .then((r) => r.data);
+
+export const deleteDimension = (dimensionId) =>
+  client
+    .delete(`/v1/dimension-definitions/${dimensionId}`)
+    .then((r) => r.data);

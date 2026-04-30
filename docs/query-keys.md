@@ -23,6 +23,7 @@ Update this file when adding new queries to any page.
 | ['frameworks'] | AnalyticalFramework list (envelope `{items}` unwrapped in `listFrameworks`). No `clientId` in the key — the API auto-scopes by caller (verified 2026-04-25). Used by Step 3's framework picker section + drawer. | `cloneFramework` (Phase 2; not wired in this session). |
 | ['framework', frameworkId] | Single AnalyticalFramework record. Reserved key — not yet read on any built page; will be populated by `getFramework` when wiring the framework-detail flow in a later session. | — |
 | ['tension', configId] | Single TensionIndicator record for the ScenarioConfig (singular sub-resource). 404 from `getTensionIndicator` is caught in the queryFn and resolved to `null` so the cache distinguishes "no record yet" from "loading" without an isError state. Cache-seeded by Step 4's first `createTensionIndicator` POST (and on each `updateTensionIndicator` PATCH). | `createTensionIndicator`, `updateTensionIndicator` (Step 4). |
+| ['dimensions', configId] | DimensionDefinition list for the ScenarioConfig (zero or more — `getDimensions` unwraps the `{items}` envelope into a plain array). Cache is mutated in place by Step 5 via `setQueryData`: append on POST, replace-by-id on PATCH (including soft-lock framework-change PATCH loop), filter-by-id on DELETE. | `createDimension`, `updateDimension`, `deleteDimension` (Step 5). |
 
 **Imperative calls (not registered query keys):**
 - `listScenarios({ source_extraction_id })` — called inside the
