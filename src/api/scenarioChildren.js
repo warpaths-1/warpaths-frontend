@@ -27,6 +27,17 @@ export const updateTensionIndicator = (configId, body) =>
     .patch(`/v1/scenario-configs/${configId}/tension-indicator`, body)
     .then((r) => r.data);
 
+// ── Turn1Template ───────────────────────────────────────────────────────────
+// One per ScenarioConfig. Used by Step 5 only as an existence probe — once a
+// Turn1Template exists, dimension_key re-derivation locks (display_name renames
+// preserve the existing key). Treats 404 as "doesn't exist" → null, matching
+// the Step 4 tension-indicator pattern.
+
+export const getTurn1Template = (configId) =>
+  client
+    .get(`/v1/scenario-configs/${configId}/turn1-template`)
+    .then((r) => r.data);
+
 // ── DimensionDefinition ─────────────────────────────────────────────────────
 // Many per ScenarioConfig (zero or more). Verified against openapi.json
 // 2026-04-30 — request schemas, endpoint paths, and list/single response

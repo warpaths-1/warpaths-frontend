@@ -267,6 +267,11 @@ Per-config sub-object API functions. One section per child object.
 - **Response fields used:** full updated TensionIndicator record — written into `['tension', configId]` cache.
 - **Constraint:** Blocked if parent ScenarioConfig is `validated` or `retired` (per catalogue — not yet probed).
 
+### GET `/v1/scenario-configs/:config_id/turn1-template` — `getTurn1Template(configId)`
+- **Live response shape:** Single Turn1Template record. OpenAPI declares 200 + 422 only; the route returns 404 when no record exists (matches the tension-indicator pattern). The frontend treats 404 as "doesn't exist" → caller catches and resolves to `null`.
+- **Used by:** `AuthoringPage` (Step 5 — `['turn1-template', configId]`). Used as an existence probe only: when a Turn1Template exists for the config, Step 5 locks `dimension_key` re-derivation (display_name renames preserve the existing key).
+- **Response fields used:** none consumed by Step 5; only the existence flag (`data != null`) drives the lock.
+
 ### POST `/v1/scenario-configs/:configId/approve` — `approveConfig(configId)`
 - (unused — wired in Session 8, staff-only.)
 
@@ -337,4 +342,4 @@ Per-config sub-object API functions. One section per child object.
 |---|---|
 | `LoginPage` | `POST /auth/login` |
 | `ExtractionPage` | `POST /v1/report-extractions/ingest`, `GET /v1/report-extractions/:id`, `GET /v1/clients/:clientId`, `GET /v1/clients/:clientId/extractions`, `GET /v1/clients/:clientId/extractions/:id`, `PATCH /v1/clients/:clientId/extractions/:id`, `DELETE /v1/clients/:clientId/extractions/:id`, `POST /v1/clients/:clientId/extractions/:id/tags`, `DELETE /v1/clients/:clientId/extractions/:id/tags/:tagId`, `GET /v1/clients/:clientId/tags`, `POST /v1/clients/:clientId/tags` |
-| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks`, `GET /v1/scenario-configs/:configId/tension-indicator`, `POST /v1/scenario-configs/:configId/tension-indicator`, `PATCH /v1/scenario-configs/:configId/tension-indicator`, `GET /v1/scenario-configs/:configId/dimension-definitions`, `POST /v1/scenario-configs/:configId/dimension-definitions`, `PATCH /v1/dimension-definitions/:id`, `DELETE /v1/dimension-definitions/:id` |
+| `AuthoringPage` | `GET /v1/clients/:clientId/extractions`, `GET /v1/report-extractions/:id`, `GET /v1/scenarios` (resume check), `GET /v1/scenarios/:id`, `POST /v1/scenarios`, `PATCH /v1/scenarios/:id`, `POST /v1/scenarios/:id/publish`, `GET /v1/scenarios/:id/configs`, `POST /v1/scenarios/:id/configs`, `PATCH /v1/scenario-configs/:id`, `GET /v1/analytical-frameworks`, `GET /v1/scenario-configs/:configId/tension-indicator`, `POST /v1/scenario-configs/:configId/tension-indicator`, `PATCH /v1/scenario-configs/:configId/tension-indicator`, `GET /v1/scenario-configs/:configId/turn1-template`, `GET /v1/scenario-configs/:configId/dimension-definitions`, `POST /v1/scenario-configs/:configId/dimension-definitions`, `PATCH /v1/dimension-definitions/:id`, `DELETE /v1/dimension-definitions/:id` |

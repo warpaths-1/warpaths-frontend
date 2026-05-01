@@ -212,6 +212,20 @@ function HelperHint({ children }) {
   );
 }
 
+// Visual-only required-field marker. Inline pattern that mirrors the
+// equivalent helper in Step5Dimensions.jsx — kept page-local since the
+// shared component library doesn't yet define a generic asterisk.
+function RequiredAsterisk() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{ color: 'var(--accent-red)', marginLeft: 4 }}
+    >
+      *
+    </span>
+  );
+}
+
 export default function Step4Tension({
   saveRef,
   scenario,
@@ -523,7 +537,12 @@ export default function Step4Tension({
 
         <FieldRow>
           <Input
-            label="NAME"
+            label={
+              <>
+                NAME
+                <RequiredAsterisk />
+              </>
+            }
             placeholder="e.g. Regional Stability Index"
             value={fields.name}
             onChange={(e) => setField('name', e.target.value)}
@@ -534,7 +553,12 @@ export default function Step4Tension({
 
         <FieldRow>
           <Textarea
-            label="DESCRIPTION"
+            label={
+              <>
+                DESCRIPTION
+                <RequiredAsterisk />
+              </>
+            }
             rows={3}
             value={fields.description}
             onChange={(e) => setField('description', e.target.value)}
@@ -545,7 +569,12 @@ export default function Step4Tension({
 
         <FieldRow>
           <Select
-            label="INITIAL VALUE"
+            label={
+              <>
+                INITIAL VALUE
+                <RequiredAsterisk />
+              </>
+            }
             options={INITIAL_VALUE_OPTIONS}
             value={fields.initial_value}
             onChange={(v) => setField('initial_value', v)}
@@ -573,7 +602,12 @@ export default function Step4Tension({
         {SCALE_KEYS.map((key, i) => (
           <div key={key} style={{ marginTop: 'var(--space-3)' }}>
             <Input
-              label={`SCALE ${i + 1} LABEL`}
+              label={
+                <>
+                  {`SCALE ${i + 1} LABEL`}
+                  <RequiredAsterisk />
+                </>
+              }
               value={fields[key]}
               onChange={(e) => setField(key, e.target.value)}
               error={errors[key]}

@@ -31,6 +31,7 @@ import {
   createDimension,
   updateDimension,
   deleteDimension,
+  getTurn1Template,
 } from '../../../api/scenarioChildren';
 import { getConfigsForScenario } from '../../../api/scenarioConfig';
 
@@ -40,6 +41,24 @@ const FRAMEWORK_OPTIONS = [
   { value: 'pestel', label: 'PESTEL' },
   { value: 'custom', label: 'Custom' },
 ];
+
+// Canonical dimensions per framework — drives the helper text rendered below
+// the framework dropdown. Source: SESSION-05b-polish.md "Canonical dimensions
+// per framework value" table.
+const FRAMEWORK_HELPER = {
+  pmesii: {
+    label: 'PMESII',
+    dims: 'Political, Military, Economic, Social, Information, Infrastructure',
+  },
+  pmesii_pt: {
+    label: 'PMESII-PT',
+    dims: 'Political, Military, Economic, Social, Information, Infrastructure, Physical Environment, Time',
+  },
+  pestel: {
+    label: 'PESTEL',
+    dims: 'Political, Economic, Social, Technological, Environmental, Legal',
+  },
+};
 
 const INITIAL_VALUE_OPTIONS = [
   { value: '1', label: '1 — Failing' },
@@ -59,7 +78,8 @@ const PATCHABLE_FIELDS = [
   'display_order',
 ];
 
-const KEY_REGEX = /^[a-z][a-z0-9_]*$/;
+const DUPLICATE_KEY_MSG =
+  'Display name produces a duplicate identifier; please choose a different name.';
 
 let clientKeySeed = 0;
 const nextClientKey = () => `draft-${++clientKeySeed}-${Date.now()}`;
@@ -72,12 +92,33 @@ function pickDraftConfig(configs) {
   )[0];
 }
 
+// Derive dimension_key from display_name. The API requires keys matching
+// /^[a-z][a-z0-9_]*$/. Steps:
+//   1. Empty/null input returns '' — the row is then blocked from saving by
+//      the existing display_name required-field check (isRowComplete), so
+//      the empty key never reaches the API.
+//   2. Unicode-normalize and strip diacritics so "Économie" → "economie".
+//   3. Lowercase + collapse non-[a-z0-9] runs to single underscores.
+//   4. Trim leading/trailing underscores.
+//   5. If the post-processing result is empty (e.g. input was "!!!" — all
+//      special characters), fall back to the literal "untitled_dimension".
+//      Intentional placeholder, not a bug: the user typed something but it
+//      produced an unusable slug, so we surface a visible token they can
+//      see and rename rather than failing silently.
+//   6. If the result starts with a digit, prefix "d_" (for "dimension") so
+//      "5G Networks" → "d_5g_networks" satisfies the leading-letter rule.
 function slugify(name) {
-  return (name ?? '')
+  if (!name) return '';
+  const folded = String(name)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  let key = folded
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .replace(/^([0-9])/, '_$1');
+    .replace(/^_+|_+$/g, '');
+  if (!key) return 'untitled_dimension';
+  if (/^[0-9]/.test(key)) key = 'd_' + key;
+  return key;
 }
 
 function blankFields() {
@@ -107,7 +148,6 @@ function rowFromRecord(rec) {
     clientKey: rec.id,
     fields,
     initial: fields,
-    keyManuallyEdited: true, // existing rows: don't auto-rewrite key
     status: 'idle',
     errors: {},
   };
@@ -120,7 +160,6 @@ function rowFromBlank() {
     clientKey: nextClientKey(),
     fields,
     initial: fields,
-    keyManuallyEdited: false,
     status: 'idle',
     errors: {},
   };
@@ -218,6 +257,46 @@ function HelperHint({ children }) {
   );
 }
 
+// Framework-specific helper text rendered below the framework dropdown.
+// Format per SESSION-05b-polish.md: canonical name + dimensions list, then a
+// closing sentence on a separate paragraph. Custom framework gets a
+// purpose-specific blurb. Pre-selection (no framework yet) keeps the
+// general categorical-tag hint.
+function FrameworkHelper({ framework }) {
+  if (!framework) {
+    return (
+      <HelperHint>
+        Categorical tag applied to every dimension on this config. Distinct
+        from the analytical framework picked in Step 3.
+      </HelperHint>
+    );
+  }
+  if (framework === 'custom') {
+    return <HelperHint>Define your own dimensions for this game design.</HelperHint>;
+  }
+  const entry = FRAMEWORK_HELPER[framework];
+  if (!entry) return null;
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontFamily: 'var(--font-mono)',
+        color: 'var(--text-secondary)',
+        marginTop: 'var(--space-2)',
+        lineHeight: 1.55,
+      }}
+    >
+      <div>
+        {entry.label}: {entry.dims}.
+      </div>
+      <div style={{ marginTop: 'var(--space-2)' }}>
+        Using these categories, select and describe the dimensions relevant
+        for your game design.
+      </div>
+    </div>
+  );
+}
+
 function RequiredAsterisk() {
   return (
     <span
@@ -285,6 +364,27 @@ export default function Step5Dimensions({
     enabled: Boolean(configId),
   });
 
+  // Existence probe only — once Turn1Template exists for this config we lock
+  // dimension_key re-derivation so display_name renames preserve the existing
+  // key. Treat 404 as "doesn't exist" → null. While loading, default to
+  // "not locked" so the slugify-on-display_name behavior continues to run for
+  // new authors; the lock kicks in once the probe resolves.
+  const turn1Query = useQuery({
+    queryKey: ['turn1-template', configId],
+    queryFn: async () => {
+      try {
+        return await getTurn1Template(configId);
+      } catch (err) {
+        if (err?.response?.status === 404) return null;
+        throw err;
+      }
+    },
+    enabled: Boolean(configId),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const dimensionKeyLocked = Boolean(turn1Query.data);
+
   // Local row state — combines persisted + unsaved drafts. The list array
   // order IS the display_order on POST.
   const [rows, setRows] = useState([]);
@@ -329,23 +429,24 @@ export default function Step5Dimensions({
   };
 
   const setRowField = (clientKey, key, value) => {
-    setRows((curr) =>
-      curr.map((r) => {
+    setRows((curr) => {
+      // Pass 1 — apply the field change to the trigger row and re-derive
+      // dimension_key on display_name edits (unless Turn1Template-locked).
+      const updated = curr.map((r) => {
         if (r.clientKey !== clientKey) return r;
         const nextFields = { ...r.fields, [key]: value };
-        let keyManuallyEdited = r.keyManuallyEdited;
-        if (key === 'dimension_key') {
-          keyManuallyEdited = true;
-        } else if (key === 'display_name' && !r.keyManuallyEdited && r.id == null) {
-          // Auto-suggest dimension_key from display_name for unsaved drafts only.
-          nextFields.dimension_key = slugify(value);
-        }
         const nextErrors = { ...r.errors };
         if (nextErrors[key]) delete nextErrors[key];
-        // Status transitions: clear 'saved' on next edit (so the indicator
-        // doesn't linger), and clear 'error' once the user has resolved the
-        // last per-field error so the row no longer looks broken when its
-        // local state is again valid (Bug 3).
+
+        // dimension_key is no longer user-editable; derive on every
+        // display_name change. Locked once Turn1Template exists for the
+        // config — the existing key is preserved across renames so any
+        // downstream Turn1Template content keyed on dimension_key doesn't
+        // break.
+        if (key === 'display_name' && !dimensionKeyLocked) {
+          nextFields.dimension_key = slugify(value);
+        }
+
         const noErrorsLeft = Object.keys(nextErrors).length === 0;
         let nextStatus = r.status;
         if (r.status === 'saved') nextStatus = 'idle';
@@ -353,12 +454,36 @@ export default function Step5Dimensions({
         return {
           ...r,
           fields: nextFields,
-          keyManuallyEdited,
           errors: nextErrors,
           status: nextStatus,
         };
-      })
-    );
+      });
+
+      // Pass 2 — recompute duplicate-key flags across ALL rows so an edit
+      // that resolves a peer's collision clears the stale error on that
+      // peer too. Server-side 422 still catches anything that slips
+      // through; this is the immediate-feedback layer.
+      return updated.map((r) => {
+        const k = r.fields.dimension_key;
+        const hasDup =
+          Boolean(k) &&
+          updated.some(
+            (p) => p.clientKey !== r.clientKey && p.fields.dimension_key === k
+          );
+        const errorIsDup = r.errors.display_name === DUPLICATE_KEY_MSG;
+        if (hasDup && !errorIsDup) {
+          return {
+            ...r,
+            errors: { ...r.errors, display_name: DUPLICATE_KEY_MSG },
+          };
+        }
+        if (!hasDup && errorIsDup) {
+          const { display_name: _drop, ...rest } = r.errors;
+          return { ...r, errors: rest };
+        }
+        return r;
+      });
+    });
   };
 
   // `override` is an optional partial fields map that takes precedence over
@@ -373,6 +498,24 @@ export default function Step5Dimensions({
     const effectiveFields = override
       ? { ...target.fields, ...override }
       : target.fields;
+
+    // Duplicate-key guard: block save when the derived dimension_key collides
+    // with another row's. setRowField already surfaces this inline; block
+    // here so a blur with the error visible doesn't accidentally hit the API.
+    const dupKey = effectiveFields.dimension_key;
+    const hasPeerCollision =
+      dupKey &&
+      rows.some(
+        (p) => p.clientKey !== clientKey && p.fields.dimension_key === dupKey
+      );
+    if (hasPeerCollision) {
+      updateRow(clientKey, (r) => ({
+        ...r,
+        status: 'error',
+        errors: { ...r.errors, display_name: DUPLICATE_KEY_MSG },
+      }));
+      return;
+    }
 
     if (target.id == null) {
       // New row — POST only when all required fields are filled. Silent
@@ -660,10 +803,7 @@ export default function Step5Dimensions({
             disabled={readOnly}
             placeholder="Select a framework…"
           />
-          <HelperHint>
-            Categorical tag applied to every dimension on this config.
-            Distinct from the analytical framework picked in Step 3.
-          </HelperHint>
+          <FrameworkHelper framework={framework} />
         </FieldRow>
 
         <SectionLabel>Dimensions</SectionLabel>
@@ -775,8 +915,6 @@ function DimensionRow({
   const { fields, errors, status } = row;
   const rowSaving = status === 'saving';
   const inputsDisabled = readOnly || rowSaving;
-  const keyValid =
-    !fields.dimension_key || KEY_REGEX.test(fields.dimension_key);
 
   return (
     <div
@@ -862,28 +1000,6 @@ function DimensionRow({
           onBlur={() => onCommit()}
           error={errors.display_name}
           disabled={inputsDisabled}
-        />
-      </FieldRow>
-
-      <FieldRow>
-        <Input
-          label={
-            <>
-              DIMENSION KEY
-              <RequiredAsterisk />
-            </>
-          }
-          placeholder="lower_snake_case"
-          value={fields.dimension_key}
-          onChange={(e) => onFieldChange('dimension_key', e.target.value)}
-          onBlur={() => onCommit()}
-          error={errors.dimension_key}
-          disabled={inputsDisabled}
-          hint={
-            !keyValid
-              ? 'Should start with a letter; lowercase, digits, and underscores only.'
-              : 'Auto-derived from display name. Edit to override.'
-          }
         />
       </FieldRow>
 
