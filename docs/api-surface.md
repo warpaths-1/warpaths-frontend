@@ -6,7 +6,7 @@ For each endpoint: HTTP method + path, the API function, which page(s) call it, 
 
 Page status (April 2026):
 - **Built:** `LoginPage`, `ExtractionPage`
-- **In progress:** `AuthoringPage` (Session 3 — actors wired, implicit publish wired)
+- **In progress:** `AuthoringPage` — Steps 1–5 complete, Step 6 next
 - **Stubs** (return `null`, no API calls yet): `AccountPage`, `GamePage`, `LeaderboardPage`, `OrgManagementPage`, `SignupPage`
 
 "(unused)" below means the API function exists but no built page calls it yet. Those are waiting on the stub pages.
