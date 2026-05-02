@@ -23,6 +23,44 @@ that document for visual or structural decisions.
 
 ---
 
+## Plan-Mode Workflow
+
+This repo uses CC plan mode for all non-trivial work.
+
+**Before entering plan mode**, read in this order:
+
+1. This CLAUDE.md
+2. `docs/decisions.md` — durable cross-page conventions
+3. The relevant page spec in `docs/pages/<Page>.md`
+4. If a feature is mid-build, the plan in `docs/plans/<FEATURE>.md`
+5. Any task-specific docs (`docs/query-keys.md`, `docs/api-surface.md`,
+   `docs/response-shapes.md`, `docs/components.md`,
+   `docs/page-design-patterns.md`, `docs/design-tokens.md`)
+
+**Pre-flight checks before starting any session:**
+
+- `git status` clean on `~/dev/warpaths-frontend`
+- `git log main --oneline -3` matches expected state
+- On `main` branch (no worktrees — they were retired in May 2026)
+
+**Before declaring a task complete:**
+
+- `npm run build` passes with zero errors and zero warnings
+- `npm test` passes
+- Smoke test the running app (build → smoke → commit, never the reverse)
+- Update `docs/api-surface.md` if `src/api/` changed
+- Update `docs/query-keys.md` if new queries added
+- Update `docs/response-shapes.md` with new probe stamps if any
+- Update the relevant `docs/plans/<FEATURE>.md` if working on a feature
+
+**Commit discipline:**
+
+- Stage explicit paths only — never `git add .` or `git add -A`
+- All commits land on `main`
+- Stage changes for human review before committing
+
+---
+
 ## Tech Stack
 - React 18
 - React Router DOM v7
@@ -55,6 +93,7 @@ docs/
   page-design-patterns.md # 21 reusable page patterns
   query-keys.md           # TanStack Query key registry
   pages/                  # One spec file per page
+    AuthoringPage.md
     ExtractionPage.md
     LoginPage.md
     SignupPage.md
@@ -62,6 +101,10 @@ docs/
     OrgManagementPage.md
     LeaderboardPage.md
     AccountPage.md
+  plans/                  # Per-feature in-flight plans
+    AUTHORING-PAGE.md
+  archive/                # Pre-plan-mode workflow artifacts (historical)
+  decisions.md            # Cross-page architectural decisions
 
 ---
 
@@ -178,7 +221,15 @@ All 21 patterns are defined there — reference by section number.
 ## Page Specs
 Every page has a spec doc in `docs/pages/`. Read it before building
 or modifying that page. File names match the page component exactly:
-`docs/pages/ExtractionPage.md`, `docs/pages/GamePage.md`, etc. Spec docs define:
+`docs/pages/ExtractionPage.md`, `docs/pages/GamePage.md`, etc.
+
+Features in active build also have a plan doc in `docs/plans/`.
+The plan doc tracks current state, next step, and feature-specific
+known issues. Where a page spec describes the steady-state design,
+the plan doc describes the in-flight state. Read both before any
+plan-mode session that touches the feature.
+
+Spec docs define:
 - Purpose and user types
 - Layout mode
 - All UI states and transitions
