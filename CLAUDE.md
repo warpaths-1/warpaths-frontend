@@ -6,7 +6,7 @@ Read this file at the start of every session alongside:
 - `docs/page-design-patterns.md`
 
 For any page being built or modified, also read its page spec doc
-in `docs/` before touching any code.
+in `docs/pages` before touching any code.
 
 ---
 
